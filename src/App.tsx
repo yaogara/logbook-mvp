@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import Auth from './components/Auth'
 import Home from './pages/Home'
 import { getSupabase } from './lib/supabase'
-import { installConnectivitySync } from './lib/sync'
+import { installConnectivitySync, fullSync } from './lib/sync'
 import './index.css'
 
 export default function App() {
@@ -16,6 +16,9 @@ export default function App() {
       setAuthed(!!data.session)
       setReady(true)
     })
+    if (navigator.onLine) {
+      void fullSync()
+    }
     const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
       setAuthed(!!session)
     })
