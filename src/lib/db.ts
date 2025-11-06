@@ -64,7 +64,17 @@ export function genId() {
   return `id_${Date.now()}_${Math.random().toString(36).slice(2)}`
 }
 
-export async function queueInsert<T extends keyof LogbookTables>(table: T, row: Omit<LogbookTables[T], 'id' | 'created_at' | 'updated_at'> & Partial<Pick<LogbookTables[T], 'id'>>) {
+type InsertRow<T extends keyof LogbookTables> =
+  Omit<
+    LogbookTables[T],
+    Extract<'id' | 'created_at' | 'updated_at', keyof LogbookTables[T]>
+  > &
+    Partial<Pick<LogbookTables[T], Extract<'id', keyof LogbookTables[T]>>>;
+
+export async function queueInsert<T extends keyof LogbookTables>(
+  table: T,
+  row: InsertRow<T>,
+) {
   const id = (row as any).id ?? genId()
   const now = new Date().toISOString()
   const record: any = { ...row, id, created_at: now, updated_at: now }
