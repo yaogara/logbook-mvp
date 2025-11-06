@@ -11,11 +11,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
+    <script type="module">
+      // Only register SW in production to avoid dev-time caching/HMR issues.
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
-        });
+        if (import.meta.env && import.meta.env.PROD) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+          });
+        } else {
+          // If a SW was previously registered, unregister it during development.
+          navigator.serviceWorker.getRegistrations?.().then((regs) => {
+            for (const r of regs) r.unregister();
+          }).catch(() => {});
+        }
       }
     </script>
   </body>
