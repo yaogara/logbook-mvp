@@ -1,15 +1,15 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-let supabase: SupabaseClient | null = null
+let client: SupabaseClient | null = null
 
 export function getSupabase() {
-  if (supabase) return supabase
+  if (client) return client
   const url = import.meta.env.VITE_SUPABASE_URL as string
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string
   if (!url || !key) {
     console.warn('Supabase env not set. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY')
   }
-  supabase = createClient(url, key, {
+  client = createClient(url, key, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
@@ -17,7 +17,7 @@ export function getSupabase() {
     },
     global: { fetch: (...args) => fetch(...args) },
   })
-  return supabase
+  return client
 }
 
 export async function getCurrentSession() {
@@ -31,3 +31,5 @@ export function onAuthChange(callback: Parameters<typeof getSupabase>[0] extends
   return sb.auth.onAuthStateChange((event, session) => callback(event, session))
 }
 
+// Optional named export for consumers that prefer direct access
+export const supabase = getSupabase()
