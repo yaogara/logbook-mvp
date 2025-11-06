@@ -3,8 +3,6 @@ import { db, getLastSync, setLastSync } from './db'
 
 type TableName = 'txns' | 'verticals' | 'categories'
 
-const SYNC_TABLES: TableName[] = ['verticals', 'categories', 'txns']
-
 export async function pushOutbox() {
   const supabase = getSupabase()
   const items = await db.outbox.orderBy('ts').toArray()
