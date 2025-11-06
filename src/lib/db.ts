@@ -1,4 +1,4 @@
-import Dexie, { Table } from 'dexie'
+import Dexie from 'dexie'
 
 export type OutboxOp = 'insert' | 'update' | 'delete'
 
@@ -37,11 +37,11 @@ export interface LogbookTables {
 }
 
 export class LogbookDB extends Dexie {
-  txns!: Table<Txn, string>
-  outbox!: Table<OutboxItem, number>
-  verticals!: Table<Vertical, string>
-  categories!: Table<Category, string>
-  meta!: Table<MetaRow, string>
+  txns!: Dexie.Table<Txn, string>
+  outbox!: Dexie.Table<OutboxItem, number>
+  verticals!: Dexie.Table<Vertical, string>
+  categories!: Dexie.Table<Category, string>
+  meta!: Dexie.Table<MetaRow, string>
 
   constructor() {
     super('logbook')
@@ -97,4 +97,3 @@ export async function getLastSync(): Promise<string | null> {
 export async function setLastSync(iso: string) {
   await db.meta.put({ key: 'last_sync', value: iso })
 }
-

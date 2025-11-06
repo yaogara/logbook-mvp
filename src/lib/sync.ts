@@ -33,28 +33,28 @@ export async function pushOutbox() {
 }
 
 export async function pullSince(since?: string | null) {
-  const supabase = getSupabase()
-  const sinceIso = since ?? (await getLastSync())
-  const now = new Date().toISOString()
-  for (const table of SYNC_TABLES) {
+  const supabase = getSupabase();
+  const sinceIso = since ?? (await getLastSync());
+  const now = new Date().toISOString();
+  for (const table of ['verticals', 'categories', 'txns']) {
     try {
-      let q = supabase.from(table).select('*')
-      if (sinceIso) q = q.gt('updated_at', sinceIso)
-      const { data, error } = await q
-      if (error) throw error
+      let q = supabase.from(table).select('*');
+      if (sinceIso && table === 'txns') q = q.gt('updated_at', sinceIso);
+      const { data, error } = await q;
+      if (error) throw error;
       if (data && data.length) {
         const tx = db.transaction('rw', db.table(table), async () => {
           for (const row of data as any[]) {
-            await (db.table(table) as any).put(row)
+            await (db.table(table) as any).put(row);
           }
-        })
-        await tx
+        });
+        await tx;
       }
     } catch (err) {
       // Continue to next table; pull is best-effort
     }
   }
-  await setLastSync(now)
+  await setLastSync(now);
 }
 
 export async function fullSync() {
@@ -75,4 +75,3 @@ export function installConnectivitySync() {
     }
   })
 }
-
