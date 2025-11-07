@@ -24,7 +24,7 @@ if (!(import.meta.env?.PROD)) {
 // Register service worker (production only)
 if ('serviceWorker' in navigator) {
   if ((import.meta as any).env && (import.meta as any).env.PROD) {
-    const buildId = (typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID : String(Date.now())) as string
+    const buildId = (window as any).__BUILD_ID__ || String(Date.now())
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register(`/sw.js?build=${encodeURIComponent(buildId)}`)
