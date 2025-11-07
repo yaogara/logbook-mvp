@@ -1,4 +1,4 @@
-const CACHE = 'logbook-mvp-v1';
+const CACHE = 'logbook-mvp-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -45,4 +45,3 @@ self.addEventListener('fetch', (event) => {
     })()
   );
 });
-

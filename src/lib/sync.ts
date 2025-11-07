@@ -37,7 +37,8 @@ export async function pullSince(since?: string | null) {
   for (const table of ['verticals', 'categories', 'txns']) {
     try {
       let q = supabase.from(table).select('*');
-      if (sinceIso && table === 'txns') q = q.gt('updated_at', sinceIso);
+      // Use gte to avoid missing boundary updates created exactly at last sync time
+      if (sinceIso && table === 'txns') q = q.gte('updated_at', sinceIso);
       const { data, error } = await q;
       if (error) throw error;
       if (data && data.length) {
