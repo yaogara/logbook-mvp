@@ -7,7 +7,7 @@ const BUILD_ID = (() => {
     return String(Date.now());
   }
 })();
-const CACHE_VERSION = 'logbook-mvp-v3';
+const CACHE_VERSION = 'logbook-mvp-v4';
 const CACHE_KEY = `${CACHE_VERSION}-${BUILD_ID}`;
 
 const ASSETS = [
@@ -29,6 +29,16 @@ self.addEventListener('activate', (event) => {
     (async () => {
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => k !== CACHE_KEY).map((k) => caches.delete(k)));
+
+      // Remove any cached requests containing "/api/trpc/" to clear stale API cache
+      const cache = await caches.open(CACHE_KEY);
+      const requests = await cache.keys();
+      await Promise.all(
+        requests
+          .filter(request => request.url.includes('/api/trpc/'))
+          .map(request => cache.delete(request))
+      );
+
       await self.clients.claim();
     })()
   );
@@ -40,6 +50,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   // Only handle same-origin
   if (url.origin !== self.location.origin) return;
+
+  // Skip caching any requests whose URL includes "/api/"
+  if (url.pathname.includes('/api/')) return;
 
   event.respondWith(
     (async () => {
