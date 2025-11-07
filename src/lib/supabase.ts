@@ -23,10 +23,14 @@ export function getSupabase() {
 export async function getCurrentSession() {
   const sb = getSupabase()
   const { data } = await sb.auth.getSession()
-  return data.session
+  return data?.session ?? null
 }
 
-export function onAuthChange(callback: Parameters<typeof getSupabase>[0] extends never ? any : (event: any, session: any) => void) {
+type AuthStateChangeHandler = Parameters<
+  ReturnType<typeof getSupabase>['auth']['onAuthStateChange']
+>[0]
+
+export function onAuthChange(callback: AuthStateChangeHandler) {
   const sb = getSupabase()
   return sb.auth.onAuthStateChange((event, session) => callback(event, session))
 }
