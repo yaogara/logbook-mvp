@@ -2,12 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "routes": [
-    { "src": "^/api/log$", "dest": "/api/log" },
-    { "src": "^/api/trpc/.*", "status": 404 },
-    { "src": "/manifest.webmanifest", "dest": "/manifest.webmanifest" },
-    { "src": "/sw.js", "dest": "/sw.js" },
-    { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/index.html" },
+    { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
+    { "source": "/sw.js", "destination": "/sw.js" },
+    { "source": "/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
 }
