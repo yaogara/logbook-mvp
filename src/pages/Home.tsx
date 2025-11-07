@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 // import { getSupabase } from '../lib/supabase'
-import LogoutButton from '../components/LogoutButton'
-import UserBadge from '../components/UserBadge'
+import { supabase } from '../lib/supabase'
 import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
 import type { Txn, TxnType } from '../types'
 
