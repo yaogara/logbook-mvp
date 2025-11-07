@@ -4,3 +4,14 @@
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "routes": [
+    { "src": "/manifest.webmanifest", "dest": "/manifest.webmanifest" },
+    { "src": "/sw.js", "dest": "/sw.js" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
