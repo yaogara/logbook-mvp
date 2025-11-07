@@ -4,8 +4,14 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // Inject a build id so we can cache-bust the service worker per deploy
   define: {
     __BUILD_ID__: JSON.stringify(String(Date.now())),
+  },
+  base: '/',
+  build: {
+    outDir: 'dist',
+  },
+  server: {
+    historyApiFallback: true,
   },
 })
