@@ -19,13 +19,13 @@ export async function pushOutbox() {
       const row = item.row
       if (item.op === 'delete') {
         const { error } = await safeQuery(
-          () => supabase.from(table).delete().eq('id', row.id),
+          () => supabase.from(table).delete().eq('id', row.id).then((r) => r),
           `delete ${table}`,
         )
         if (error) throw error
       } else {
         const { error } = await safeQuery(
-          () => supabase.from(table).upsert(row, { onConflict: 'id' }),
+          () => supabase.from(table).upsert(row, { onConflict: 'id' }).then((r) => r),
           `upsert ${table}`,
         )
         if (error) throw error
@@ -53,7 +53,7 @@ export async function pullSince(since?: string | null) {
       let q = supabase.from(table).select('*');
       // Use gte to avoid missing boundary updates created exactly at last sync time
       if (sinceIso && table === 'txns') q = q.gte('updated_at', sinceIso);
-      const { data, error } = await safeQuery<any[]>(() => q, `pull ${table}`);
+      const { data, error } = await safeQuery<any[]>(() => q.then((r) => r), `pull ${table}`);
       if (error) throw error;
       if (data && data.length) {
         const tx = db.transaction('rw', db.table(table), async () => {

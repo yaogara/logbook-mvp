@@ -26,10 +26,12 @@ export default function Dashboard() {
     setError(null)
     try {
       const { data, error } = await safeQuery<SummaryRow[]>(
-        () => supabase
-          .from('txns_summary_view')
-          .select('*')
-          .order('vertical', { ascending: true }),
+        () =>
+          supabase
+            .from('txns_summary_view')
+            .select('*')
+            .order('vertical', { ascending: true })
+            .then((r) => r),
         'load txns summary',
       )
       if (error) throw error

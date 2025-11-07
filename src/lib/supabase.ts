@@ -51,7 +51,7 @@ export const supabase = getSupabase()
 
 // Auto-retry wrapper with exponential backoff
 export async function safeQuery<T>(
-  fn: () => Promise<{ data: T | null; error: any }>,
+  fn: () => PromiseLike<{ data: T | null; error: any }>,
   context: string = 'unknown',
   retries: number = 2,
 ): Promise<{ data: T | null; error?: any }> {
