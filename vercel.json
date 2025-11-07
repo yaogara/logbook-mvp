@@ -3,11 +3,11 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "routes": [
-    { "src": "/api/log", "dest": "/api/log" },
+    { "src": "^/api/log$", "dest": "/api/log" },
+    { "src": "^/api/trpc/.*", "status": 404 },
     { "src": "/manifest.webmanifest", "dest": "/manifest.webmanifest" },
     { "src": "/sw.js", "dest": "/sw.js" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
-    { "src": "/api/(.*)", "dest": "/index.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
