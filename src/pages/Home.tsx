@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 // import { getSupabase } from '../lib/supabase'
 import { supabase } from '../lib/supabase'
+import { OfflineBanner } from '../components/OfflineBanner'
 import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
 import type { Txn, TxnType } from '../types'
 
@@ -120,11 +121,16 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+      <OfflineBanner />
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold tracking-tight text-slate-800">Yaogará</h1>
           <div className="flex items-center gap-3">
             <StatusBadge online={online} />
+            <a
+              href="/dashboard"
+              className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1.5 text-sm font-medium text-slate-700 transition"
+            >Dashboard</a>
             <button
               onClick={() => supabase.auth.signOut()}
               className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1.5 text-sm font-medium text-slate-700 transition"
@@ -256,8 +262,7 @@ export default function Home() {
           </div>
           {recent.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-sm text-slate-500">
-              <span className="text-base font-medium text-slate-600">Aún no hay movimientos</span>
-              <span>Registrá un ingreso o gasto para verlo acá.</span>
+              <span className="text-base font-medium text-slate-600">No transactions yet — add your first one above!</span>
             </div>
           ) : (
             <ul className="divide-y divide-gray-100">

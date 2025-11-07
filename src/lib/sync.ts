@@ -1,9 +1,13 @@
-import { getSupabase } from './supabase'
+import { getSupabase, safeQuery } from './supabase'
 import { db, getLastSync, setLastSync } from './db'
 
 type TableName = 'txns' | 'verticals' | 'categories'
 
 export async function pushOutbox() {
+  if (!navigator.onLine) {
+    console.warn('⚠️ Offline mode: skipping sync')
+    return 0
+  }
   const supabase = getSupabase()
   const items = await db.outbox.orderBy('ts').toArray()
   let processed = 0
@@ -14,10 +18,16 @@ export async function pushOutbox() {
       const table = item.table as TableName
       const row = item.row
       if (item.op === 'delete') {
-        const { error } = await supabase.from(table).delete().eq('id', row.id)
+        const { error } = await safeQuery(
+          () => supabase.from(table).delete().eq('id', row.id),
+          `delete ${table}`,
+        )
         if (error) throw error
       } else {
-        const { error } = await supabase.from(table).upsert(row, { onConflict: 'id' })
+        const { error } = await safeQuery(
+          () => supabase.from(table).upsert(row, { onConflict: 'id' }),
+          `upsert ${table}`,
+        )
         if (error) throw error
       }
       await db.outbox.delete(item.id!)
@@ -31,6 +41,10 @@ export async function pushOutbox() {
 }
 
 export async function pullSince(since?: string | null) {
+  if (!navigator.onLine) {
+    console.warn('⚠️ Offline mode: skipping sync')
+    return
+  }
   const supabase = getSupabase();
   const sinceIso = since ?? (await getLastSync());
   const now = new Date().toISOString();
@@ -39,7 +53,7 @@ export async function pullSince(since?: string | null) {
       let q = supabase.from(table).select('*');
       // Use gte to avoid missing boundary updates created exactly at last sync time
       if (sinceIso && table === 'txns') q = q.gte('updated_at', sinceIso);
-      const { data, error } = await q;
+      const { data, error } = await safeQuery<any[]>(() => q, `pull ${table}`);
       if (error) throw error;
       if (data && data.length) {
         const tx = db.transaction('rw', db.table(table), async () => {

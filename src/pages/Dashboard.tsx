@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, safeQuery } from '../lib/supabase'
 import UserBadge from '../components/UserBadge'
 import LogoutButton from '../components/LogoutButton'
+import Loader from '../components/Loader'
+import { OfflineBanner } from '../components/OfflineBanner'
 
 type SummaryRow = {
   vertical: string
@@ -23,10 +25,13 @@ export default function Dashboard() {
     setLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
-        .from('txns_summary_view')
-        .select('*')
-        .order('vertical', { ascending: true })
+      const { data, error } = await safeQuery<SummaryRow[]>(
+        () => supabase
+          .from('txns_summary_view')
+          .select('*')
+          .order('vertical', { ascending: true }),
+        'load txns summary',
+      )
       if (error) throw error
       setRows((data as SummaryRow[]) ?? [])
     } catch (err: any) {
@@ -49,6 +54,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen">
+      <OfflineBanner />
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-lg font-semibold">Dashboard</h1>
@@ -92,7 +98,7 @@ export default function Dashboard() {
         <section>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {loading && rows.length === 0 && (
-              <div className="col-span-full text-sm text-gray-500">Loading…</div>
+              <div className="col-span-full"><Loader /></div>
             )}
             {!loading && rows.length === 0 && !error && (
               <div className="col-span-full text-sm text-gray-500">No data.</div>

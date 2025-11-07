@@ -9,6 +9,13 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 )
 
+// Developer diagnostics
+console.log('%cLogbook MVP 🌿', 'color: lime; font-weight: bold; font-size: 14px')
+console.log('Environment:', import.meta.env.MODE)
+if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  console.warn('⚠️ Missing Supabase env vars — check Vercel project settings.')
+}
+
 // Register service worker (production only)
 if ('serviceWorker' in navigator) {
   if ((import.meta as any).env && (import.meta as any).env.PROD) {

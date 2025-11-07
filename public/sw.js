@@ -7,7 +7,8 @@ const BUILD_ID = (() => {
     return String(Date.now());
   }
 })();
-const CACHE_KEY = `logbook-mvp-${self.registration.scope}-${BUILD_ID}`;
+const CACHE_VERSION = 'logbook-mvp-v3';
+const CACHE_KEY = `${CACHE_VERSION}-${BUILD_ID}`;
 
 const ASSETS = [
   '/',
@@ -43,7 +44,21 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     (async () => {
       const cached = await caches.match(request);
-      if (cached) return cached;
+      if (cached) {
+        // Stale-while-revalidate: return cache immediately, update in background
+        event.waitUntil(
+          (async () => {
+            try {
+              const fresh = await fetch(request);
+              const cache = await caches.open(CACHE_KEY);
+              await cache.put(request, fresh.clone());
+            } catch (_) {
+              // ignore network update failure
+            }
+          })()
+        );
+        return cached;
+      }
       try {
         const response = await fetch(request);
         const cache = await caches.open(CACHE_KEY);
