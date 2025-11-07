@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import Auth from './components/Auth'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
@@ -27,7 +28,18 @@ export default function App() {
   }, [])
 
   if (!ready) return null
-  const path = typeof window !== 'undefined' ? window.location.pathname : '/'
-  if (!authed) return <Auth />
-  return path === '/dashboard' ? <Dashboard /> : <Home />
+
+  return (
+    <Router>
+      {!authed ? (
+        <Auth />
+      ) : (
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      )}
+    </Router>
+  )
 }
