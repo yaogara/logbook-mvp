@@ -18,16 +18,7 @@ export function getSupabase() {
     },
     global: { fetch: (...args) => fetch(...args) },
   })
-  // Basic connectivity test (non-blocking)
-  try {
-    // Try a lightweight HEAD to REST endpoint; treat any resolved fetch as connectivity OK
-    const restBase = `${url.replace(/\/$/, '')}/rest/v1/`
-    fetch(restBase, { method: 'HEAD', mode: 'no-cors' })
-      .then(() => console.log('✅ Supabase connected successfully'))
-      .catch(() => console.warn('❌ Supabase connection failed'))
-  } catch {
-    // no-op
-  }
+  console.log('✅ Supabase client initialized:', url);
   return client
 }
 
