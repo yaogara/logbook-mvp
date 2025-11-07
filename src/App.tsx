@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Auth from './components/Auth'
 import Home from './pages/Home'
+import Dashboard from './pages/Dashboard'
 import { getSupabase } from './lib/supabase'
 import { installConnectivitySync, fullSync } from './lib/sync'
 import './index.css'
@@ -26,5 +27,7 @@ export default function App() {
   }, [])
 
   if (!ready) return null
-  return authed ? <Home /> : <Auth />
+  const path = typeof window !== 'undefined' ? window.location.pathname : '/'
+  if (!authed) return <Auth />
+  return path === '/dashboard' ? <Dashboard /> : <Home />
 }

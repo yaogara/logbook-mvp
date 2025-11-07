@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { getSupabase } from '../lib/supabase'
+// import { getSupabase } from '../lib/supabase'
+import LogoutButton from '../components/LogoutButton'
+import UserBadge from '../components/UserBadge'
 import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
 import type { Txn, TxnType } from '../types'
 
-const supabase = getSupabase()
+// const supabase = getSupabase()
 
 export default function Home() {
   const [online, setOnline] = useState<boolean>(navigator.onLine)
@@ -116,10 +118,12 @@ export default function Home() {
           <h1 className="text-lg font-semibold">Logbook</h1>
           <div className="flex items-center gap-3">
             <StatusBadge online={online} />
-            <button
-              onClick={() => supabase.auth.signOut()}
+            <a
+              href="/dashboard"
               className="rounded-lg bg-gray-100 hover:bg-gray-200 px-3 py-1.5 text-sm"
-            >Sign out</button>
+            >📊 Dashboard</a>
+            <UserBadge />
+            <LogoutButton />
           </div>
         </div>
       </header>
@@ -189,6 +193,8 @@ export default function Home() {
             </ul>
           )}
         </section>
+
+        {/* Account info moved to header */}
       </main>
 
       {editing && (
@@ -236,4 +242,3 @@ function StatusBadge({ online }: { online: boolean }) {
     </span>
   )
 }
-
