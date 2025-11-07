@@ -14,11 +14,15 @@ export default function Auth() {
     setLoading(true)
     try {
       const supabase = getSupabase()
+      const redirectTo =
+        window.location.hostname.includes('vercel.app')
+          ? 'https://logbook-mvp.vercel.app'
+          : window.location.origin;
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
           shouldCreateUser: true,
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: redirectTo,
         },
       })
       if (error) throw error
