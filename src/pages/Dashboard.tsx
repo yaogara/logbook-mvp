@@ -4,6 +4,7 @@ import UserBadge from '../components/UserBadge'
 import LogoutButton from '../components/LogoutButton'
 import Loader from '../components/Loader'
 import { OfflineBanner } from '../components/OfflineBanner'
+import { Link } from 'react-router-dom'
 
 type SummaryRow = {
   vertical: string
@@ -61,7 +62,7 @@ export default function Dashboard() {
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="text-lg font-semibold">Dashboard</h1>
           <div className="flex items-center gap-3">
-            <a href="/" className="rounded-lg px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200">Home</a>
+            <Link to="/" className="rounded-lg px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200">Home</Link>
             <button
               onClick={load}
               className="rounded-lg px-3 py-1.5 text-sm bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"

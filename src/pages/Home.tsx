@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
 import type { Txn, TxnType } from '../types'
+import { Link } from 'react-router-dom'
 
 // const supabase = getSupabase()
 
@@ -127,10 +128,10 @@ export default function Home() {
           <h1 className="text-xl font-semibold tracking-tight text-slate-800">Yaogará</h1>
           <div className="flex items-center gap-3">
             <StatusBadge online={online} />
-            <a
-              href="/dashboard"
+            <Link
+              to="/dashboard"
               className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1.5 text-sm font-medium text-slate-700 transition"
-            >Dashboard</a>
+            >Dashboard</Link>
             <button
               onClick={() => supabase.auth.signOut()}
               className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1.5 text-sm font-medium text-slate-700 transition"

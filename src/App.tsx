@@ -1,16 +1,20 @@
 // App.tsx
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Auth from './components/Auth'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import { getSupabase } from './lib/supabase'
 import { installConnectivitySync, fullSync } from './lib/sync'
 import './index.css'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import Loader from './components/Loader'
+import AppShell from './components/AppShell'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
+import { ToastProvider } from './components/ToastProvider'
 
 export default function App() {
   const [ready, setReady] = useState(false)
   const [authed, setAuthed] = useState(false)
-  const [path, setPath] = useState(window.location.pathname)
 
   useEffect(() => {
     installConnectivitySync()
@@ -27,55 +31,55 @@ export default function App() {
 
     if (navigator.onLine) void fullSync()
 
-    const { data: sub } = sb.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = sb.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
       setAuthed(!!session)
     })
 
     return () => sub.subscription.unsubscribe()
   }, [])
 
-  useEffect(() => {
-    const onPop = () => setPath(window.location.pathname)
-    window.addEventListener('popstate', onPop)
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader label="Loading app…" />
+      </div>
+    )
+  }
 
-    const onClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null
-      const anchor = target?.closest && target.closest('a') as HTMLAnchorElement | null
-      if (!anchor) return
+  return (
+    <ToastProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Auth />} />
 
-      const href = anchor.getAttribute('href') || ''
-      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute authed={authed}>
+                <AppShell>
+                  <Home />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute authed={authed}>
+                <AppShell>
+                  <Dashboard />
+                </AppShell>
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </ToastProvider>
+  )
+}
 
-      const isModified = e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || (e as any).button !== 0 || !!anchor.target
-      if (isModified) return
-
-      const url = new URL(anchor.href, window.location.href)
-      if (url.origin !== window.location.origin) return
-
-      e.preventDefault()
-      if (url.pathname !== window.location.pathname || url.search !== window.location.search || url.hash !== window.location.hash) {
-        window.history.pushState({}, '', url.pathname + url.search + url.hash)
-        setPath(url.pathname)
-      }
-    }
-
-    document.addEventListener('click', onClick)
-
-    return () => {
-      window.removeEventListener('popstate', onPop)
-      document.removeEventListener('click', onClick)
-    }
-  }, [])
-
-  if (!ready) return null
-
-  // Manual routing based on pathname
-
-  if (!authed) return <Auth />
-
-  if (path === '/' || path === '') return <Home />
-  if (path === '/dashboard') return <Dashboard />
-
-  // Fallback
-  return <Home />
+function ProtectedRoute({ authed, children }: { authed: boolean; children: ReactNode }) {
+  if (!authed) return <Navigate to="/login" replace />
+  return <>{children}</>
 }
