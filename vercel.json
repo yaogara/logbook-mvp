@@ -1,13 +1,30 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "cleanUrls": true,
-  "trailingSlash": false,
-  "rewrites": [
-    { "source": "/assets/(.*)", "destination": "/assets/$1" },
-    { "source": "/sw.js", "destination": "/sw.js" },
-    { "source": "/manifest.webmanifest", "destination": "/manifest.webmanifest" },
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "version": 3,
+  "routes": [
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1",
+      "continue": true
+    },
+    {
+      "src": "/sw.js",
+      "dest": "/sw.js",
+      "continue": true
+    },
+    {
+      "src": "/manifest.webmanifest",
+      "dest": "/manifest.webmanifest",
+      "continue": true
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ],
+  "build": {
+    "env": {
+      "VITE_SUPABASE_URL": "@vite_supabase_url",
+      "VITE_SUPABASE_ANON_KEY": "@vite_supabase_anon_key"
+    }
+  }
 }
