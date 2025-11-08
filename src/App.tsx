@@ -6,7 +6,7 @@ import Dashboard from './pages/Dashboard'
 import { getSupabase } from './lib/supabase'
 import { installConnectivitySync, fullSync } from './lib/sync'
 import './index.css'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import Loader from './components/Loader'
 import AppShell from './components/AppShell'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
@@ -48,33 +48,31 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Auth />} />
+      <Routes>
+        <Route path="/login" element={<Auth />} />
 
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute authed={authed}>
-                <AppShell>
-                  <Home />
-                </AppShell>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute authed={authed}>
-                <AppShell>
-                  <Dashboard />
-                </AppShell>
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute authed={authed}>
+              <AppShell>
+                <Home />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute authed={authed}>
+              <AppShell>
+                <Dashboard />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </ToastProvider>
   )
 }
