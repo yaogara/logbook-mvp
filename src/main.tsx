@@ -1,3 +1,14 @@
+// main.tsx — ADD THIS FIRST
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (const reg of registrations) {
+      reg.unregister().then(() => {
+        console.log('Service Worker unregistered:', reg.scope)
+      })
+    }
+  })
+}
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
@@ -21,15 +32,15 @@ if (!(import.meta.env?.PROD)) {
   }
 }
 
-// Register service worker (production only)
-if ('serviceWorker' in navigator) {
-  if ((import.meta as any).env && (import.meta as any).env.PROD) {
-    const buildId = (window as any).__BUILD_ID__ || String(Date.now())
-    window.addEventListener('load', () => {
-      navigator.serviceWorker
-        .register(`/sw.js?build=${encodeURIComponent(buildId)}`)
-        .then(() => console.log('✅ Service worker registered', { buildId }))
-        .catch(console.error)
-    })
-  }
-}
+// // Register service worker (production only)
+// if ('serviceWorker' in navigator) {
+//   if ((import.meta as any).env && (import.meta as any).env.PROD) {
+//     const buildId = (window as any).__BUILD_ID__ || String(Date.now())
+//     window.addEventListener('load', () => {
+//       navigator.serviceWorker
+//         .register(`/sw.js?build=${encodeURIComponent(buildId)}`)
+//         .then(() => console.log('✅ Service worker registered', { buildId }))
+//         .catch(console.error)
+//     })
+//   }
+// }
