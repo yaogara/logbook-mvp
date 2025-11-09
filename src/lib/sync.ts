@@ -51,6 +51,16 @@ export async function pushOutbox() {
           const id = row.id // we generate UUIDs locally; send as id
           const client_id = row.id // also set client_id for traceability
           
+          // Generate occurred_on timestamp
+          let occurred_on: string
+          if (row.date && row.time) {
+            // Use existing date/time from edits or synced data
+            occurred_on = `${row.date}T${row.time}:00.000Z`
+          } else {
+            // New record: use current timestamp
+            occurred_on = new Date().toISOString()
+          }
+          
           payload = {
             id,
             client_id,
@@ -58,17 +68,10 @@ export async function pushOutbox() {
             amount,
             type,
             currency,
+            occurred_on,
             vertical_id,
             category_id,
             description,
-          }
-          
-          // Only send occurred_on if we have date/time (for edits)
-          // For new records, let Supabase set it via default NOW()
-          if (row.date && row.time) {
-            const dateStr = row.date
-            const timeStr = row.time
-            payload.occurred_on = `${dateStr}T${timeStr}:00.000Z`
           }
           
           // Defensive: never send a 'date' or 'time' column to the server

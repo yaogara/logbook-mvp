@@ -14,6 +14,7 @@ export default function Home() {
   const [verticals, setVerticals] = useState<{ id: string; name: string }[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string; vertical_id?: string | null }[]>([])
   const [saving, setSaving] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [editing, setEditing] = useState<Txn | null>(null)
   const [deleting, setDeleting] = useState<Txn | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -65,6 +66,23 @@ export default function Home() {
       .limit(10)
       .toArray()
     setRecent(items)
+  }
+
+  async function forceSync() {
+    if (!navigator.onLine) {
+      show('Sin conexión', 'error')
+      return
+    }
+    setSyncing(true)
+    try {
+      await fullSync()
+      await loadRecent()
+      show('Sincronizado', 'success')
+    } catch (err) {
+      show('Error al sincronizar', 'error')
+    } finally {
+      setSyncing(false)
+    }
   }
 
   function resetForm() {
@@ -253,6 +271,24 @@ export default function Home() {
               <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Actividad reciente</h2>
               <p className="text-sm text-[rgb(var(--muted))]">Tus últimos movimientos sincronizados.</p>
             </div>
+            <button
+              onClick={forceSync}
+              disabled={syncing || !online}
+              className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+              title="Forzar sincronización"
+            >
+              {syncing ? (
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" opacity="0.25" />
+                  <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                </svg>
+              )}
+              Sync
+            </button>
           </div>
           {recent.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] py-10 text-center text-sm text-[rgb(var(--muted))]">
