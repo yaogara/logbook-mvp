@@ -9,6 +9,12 @@ export async function pushOutbox() {
     return 0
   }
   const supabase = getSupabase()
+  const { data: userRes } = await supabase.auth.getUser()
+  const userId = userRes?.user?.id
+  if (!userId) {
+    console.warn('⚠️ No authenticated user; skipping pushOutbox')
+    return 0
+  }
   const items = await db.outbox.orderBy('ts').toArray()
   let processed = 0
   for (const item of items) {
@@ -24,10 +30,41 @@ export async function pushOutbox() {
         )
         if (error) throw error
       } else {
-        // Avoid sending fields not present on the server schema (e.g., created_at)
-        const payload: any = { ...row }
+        // Whitelist columns to avoid schema mismatches between client cache and server
+        let payload: any
         if (table === 'txns') {
-          delete payload.created_at
+          // Map local fields to server schema
+          const amount = row.amount
+          const type = row.type
+          const occurred_on = row.date // local 'date' -> server 'occurred_on'
+          const vertical_id = row.vertical_id ?? null
+          const category_id = row.category_id ?? null
+          const description = row.description ?? null
+          const id = row.id // we generate UUIDs locally; send as id
+          const client_id = row.id // also set client_id for traceability
+          payload = {
+            id,
+            client_id,
+            user_id: userId,
+            amount,
+            type,
+            occurred_on,
+            vertical_id,
+            category_id,
+            description,
+          }
+        } else if (table === 'verticals') {
+          const allowed = ['id','name'] as const
+          payload = Object.fromEntries(
+            Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
+          )
+        } else if (table === 'categories') {
+          const allowed = ['id','name','vertical_id'] as const
+          payload = Object.fromEntries(
+            Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
+          )
+        } else {
+          payload = row
         }
         const { error } = await safeQuery(
           () => supabase.from(table).upsert(payload, { onConflict: 'id' }).then((r) => r),
@@ -56,8 +93,7 @@ export async function pullSince(since?: string | null) {
   for (const table of ['verticals', 'categories', 'txns']) {
     try {
       let q = supabase.from(table).select('*');
-      // Use gte to avoid missing boundary updates created exactly at last sync time
-      if (sinceIso && table === 'txns') q = q.gte('updated_at', sinceIso);
+      // Avoid filtering by updated_at since the column may not exist on the server schema
       const { data, error } = await safeQuery<any[]>(() => q.then((r) => r), `pull ${table}`);
       if (error) throw error;
       if (data && data.length) {

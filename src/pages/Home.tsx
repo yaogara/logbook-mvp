@@ -5,6 +5,7 @@ import { OfflineBanner } from '../components/OfflineBanner'
 import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
 import type { Txn, TxnType } from '../types'
 import { Link } from 'react-router-dom'
+import { fullSync } from '../lib/sync'
 
 // const supabase = getSupabase()
 
@@ -93,6 +94,7 @@ export default function Home() {
       await queueInsert('txns', txn as any)
       resetForm()
       await loadRecent()
+      if (navigator.onLine) await fullSync()
       setShowSuccess(true)
     } finally {
       setSaving(false)
@@ -111,6 +113,7 @@ export default function Home() {
     } as any)
     setEditing(null)
     await loadRecent()
+    if (navigator.onLine) await fullSync()
   }
 
   async function applyDelete() {
@@ -118,6 +121,7 @@ export default function Home() {
     await queueDelete('txns', deleting.id)
     setDeleting(null)
     await loadRecent()
+    if (navigator.onLine) await fullSync()
   }
 
   return (
