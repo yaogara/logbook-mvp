@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
-import type { Txn, TxnType } from '../types'
+import type { Txn, TxnType, Currency } from '../types'
 import { fullSync } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
 
@@ -20,7 +20,9 @@ export default function Home() {
 
   const [amount, setAmount] = useState<string>('')
   const [type, setType] = useState<TxnType>('expense')
+  const [currency, setCurrency] = useState<Currency>('COP')
   const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10))
+  const [time, setTime] = useState<string>(new Date().toTimeString().slice(0, 5))
   const [verticalId, setVerticalId] = useState<string>('')
   const [categoryId, setCategoryId] = useState<string>('')
   const [description, setDescription] = useState<string>('')
@@ -70,7 +72,9 @@ export default function Home() {
   function resetForm() {
     setAmount('')
     setType('expense')
+    setCurrency('COP')
     setDate(new Date().toISOString().slice(0, 10))
+    setTime(new Date().toTimeString().slice(0, 5))
     setVerticalId('')
     setCategoryId('')
     setDescription('')
@@ -84,7 +88,9 @@ export default function Home() {
       const txn: Omit<Txn, 'id' | 'created_at' | 'updated_at'> = {
         amount: Number(amount),
         type,
+        currency,
         date,
+        time,
         vertical_id: verticalId || null,
         category_id: categoryId || null,
         description: description || undefined,
@@ -105,7 +111,9 @@ export default function Home() {
     await queueUpdate('txns', editing.id, {
       amount: editing.amount,
       type: editing.type,
+      currency: editing.currency,
       date: editing.date,
+      time: editing.time,
       vertical_id: editing.vertical_id ?? null,
       category_id: editing.category_id ?? null,
       description: editing.description ?? undefined,
@@ -198,6 +206,28 @@ export default function Home() {
                 />
               </div>
               <div className="space-y-2">
+                <label className="text-sm font-medium text-[rgb(var(--muted))]">Hora</label>
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  required
+                  className="input"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[rgb(var(--muted))]">Moneda</label>
+                <select
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value as Currency)}
+                  className="input"
+                >
+                  <option value="COP">COP - Peso colombiano</option>
+                  <option value="USD">USD - Dólar</option>
+                  <option value="EUR">EUR - Euro</option>
+                </select>
+              </div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-[rgb(var(--muted))]">Vertical</label>
                 <select
                   value={verticalId}
@@ -260,10 +290,12 @@ export default function Home() {
                 <li key={t.id} className="py-3 flex items-center justify-between gap-3">
                   <div>
                     <div className="text-sm font-medium text-[rgb(var(--fg))]">{t.description || (t.type === 'expense' ? 'Gasto' : 'Ingreso')}</div>
-                    <div className="text-xs text-[rgb(var(--muted))]">{t.date}</div>
+                    <div className="text-xs text-[rgb(var(--muted))]">{t.date} {t.time || ''}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className={`text-sm font-semibold ${t.type==='expense' ? 'text-red-400' : 'text-green-400'}`}>{t.type==='expense' ? '-' : '+'}${t.amount.toFixed(2)}</div>
+                    <div className={`text-sm font-semibold ${t.type==='expense' ? 'text-red-400' : 'text-green-400'}`}>
+                      {t.type==='expense' ? '-' : '+'}{t.currency || 'COP'} {t.amount.toFixed(2)}
+                    </div>
                     <button onClick={() => setEditing(t)} className="text-sm font-medium text-[rgb(var(--muted))] transition hover:text-[rgb(var(--fg))]">Editar</button>
                     <button onClick={() => setDeleting(t)} className="text-sm font-medium text-red-400 transition hover:text-red-300">Eliminar</button>
                   </div>
@@ -308,12 +340,29 @@ export default function Home() {
                   >Gasto</button>
                 </div>
               </div>
-              <input
-                type="date"
-                value={editing.date}
-                onChange={(e) => setEditing({ ...editing, date: e.target.value })}
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={editing.date}
+                  onChange={(e) => setEditing({ ...editing, date: e.target.value })}
+                  className="input"
+                />
+                <input
+                  type="time"
+                  value={editing.time || ''}
+                  onChange={(e) => setEditing({ ...editing, time: e.target.value })}
+                  className="input"
+                />
+              </div>
+              <select
+                value={editing.currency || 'COP'}
+                onChange={(e) => setEditing({ ...editing, currency: e.target.value as Currency })}
                 className="input"
-              />
+              >
+                <option value="COP">COP - Peso colombiano</option>
+                <option value="USD">USD - Dólar</option>
+                <option value="EUR">EUR - Euro</option>
+              </select>
               <input
                 type="text"
                 value={editing.description || ''}

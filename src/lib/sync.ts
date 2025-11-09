@@ -44,7 +44,11 @@ export async function pushOutbox() {
           // Map local fields to server schema
           const amount = row.amount
           const type = row.type === 'income' ? 'Ingreso' : 'Gasto'
-          const occurred_on = row.date // local 'date' -> server 'occurred_on'
+          const currency = row.currency || 'COP'
+          // Combine date and time into ISO timestamp for server
+          const dateStr = row.date || new Date().toISOString().slice(0, 10)
+          const timeStr = row.time || '00:00'
+          const occurred_on = `${dateStr}T${timeStr}:00.000Z`
           const vertical_id = row.vertical_id ?? null
           const category_id = row.category_id ?? null
           const description = row.description ?? null
@@ -56,13 +60,15 @@ export async function pushOutbox() {
             user_id: userId,
             amount,
             type,
+            currency,
             occurred_on,
             vertical_id,
             category_id,
             description,
           }
-          // Defensive: never send a 'date' column to the server
+          // Defensive: never send a 'date' or 'time' column to the server
           delete (payload as any).date
+          delete (payload as any).time
           if ((import.meta as any)?.env?.DEV) {
             // Debug: ensure we are not sending an unknown 'date' column
             // eslint-disable-next-line no-console
