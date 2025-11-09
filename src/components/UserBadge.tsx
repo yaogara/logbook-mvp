@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 
 // Map emails to display names
 const emailToName: Record<string, string> = {
-  'carl@example.com': 'Carl',
+  'carl.turpin@gmail.com': 'Carl',
   'samuel@example.com': 'Samuel',
   // Add more email-to-name mappings here
 }
