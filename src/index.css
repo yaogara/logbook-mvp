@@ -4,20 +4,20 @@
 
 @layer base {
   :root {
-    /* Earthy theme - dark green background with warm accents */
-    --bg: 24 44 37; /* Deep forest green #182C25 */
-    --bg-gradient-from: 24 44 37; /* forest green */
-    --bg-gradient-to: 34 59 50; /* lighter forest green */
-    --fg: 250 247 239; /* Warm cream #FAF7EF */
-    --muted: 168 162 140; /* Warm tan #A8A28C */
+    /* Earthy theme - light sage background with warm accents */
+    --bg: 225 235 230; /* Light sage #E1EBE6 */
+    --bg-gradient-from: 225 235 230; /* light sage */
+    --bg-gradient-to: 210 225 218; /* slightly darker sage */
+    --fg: 30 40 35; /* Dark forest text #1E2823 */
+    --muted: 90 100 95; /* Medium grey-green #5A645F */
     --primary: 203 108 62; /* Terracotta #CB6C3E */
     --primary-600: 180 88 48; /* Darker terracotta #B45830 */
     --primary-700: 156 72 38; /* Deep terracotta #9C4826 */
     --ring: 223 138 92; /* Light terracotta #DF8A5C */
-    --card: 45 68 58; /* Sage green #2D443A */
-    --card-hover: 55 82 70; /* Lighter sage #375246 */
-    --border: 65 95 82; /* Olive border #415F52 */
-    --input-bg: 34 54 46; /* Dark olive #22362E */
+    --card: 245 250 248; /* Off-white card #F5FAF8 */
+    --card-hover: 235 245 240; /* Light hover #EBF5F0 */
+    --border: 200 215 208; /* Soft sage border #C8D7D0 */
+    --input-bg: 255 255 255; /* White inputs #FFFFFF */
   }
 
   .dark {

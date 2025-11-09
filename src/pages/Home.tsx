@@ -70,16 +70,16 @@ export default function Home() {
 
   async function forceSync() {
     if (!navigator.onLine) {
-      show('Sin conexión', 'error')
+      show({ title: 'Sin conexión', variant: 'error' })
       return
     }
     setSyncing(true)
     try {
       await fullSync()
       await loadRecent()
-      show('Sincronizado', 'success')
+      show({ title: 'Sincronizado', variant: 'success' })
     } catch (err) {
-      show('Error al sincronizar', 'error')
+      show({ title: 'Error al sincronizar', variant: 'error' })
     } finally {
       setSyncing(false)
     }
