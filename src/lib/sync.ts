@@ -1,5 +1,5 @@
 import { getSupabase, safeQuery } from './supabase'
-import { db, getLastSync, setLastSync } from './db'
+import { db, setLastSync } from './db'
 
 type TableName = 'txns' | 'verticals' | 'categories'
 
@@ -25,7 +25,7 @@ export async function pushOutbox() {
       const row = item.row
       if (item.op === 'delete') {
         const { error } = await safeQuery(
-          () => supabase.from(table).delete().eq('id', row.id).then((r) => r),
+          () => supabase.from(table).delete().eq('id', row.id).then((r: any) => r),
           `delete ${table}`,
         )
         if (error) throw error
@@ -74,7 +74,7 @@ export async function pushOutbox() {
           payload = row
         }
         const { error } = await safeQuery(
-          () => supabase.from(table).upsert(payload, { onConflict: 'id' }).then((r) => r),
+          () => supabase.from(table).upsert(payload, { onConflict: 'id' }).then((r: any) => r),
           `upsert ${table}`,
         )
         if (error) throw error
@@ -89,19 +89,18 @@ export async function pushOutbox() {
   return processed
 }
 
-export async function pullSince(since?: string | null) {
+export async function pullSince() {
   if (!navigator.onLine) {
     console.warn('⚠️ Offline mode: skipping sync')
     return
   }
   const supabase = getSupabase();
-  const sinceIso = since ?? (await getLastSync());
   const now = new Date().toISOString();
   for (const table of ['verticals', 'categories', 'txns']) {
     try {
       let q = supabase.from(table).select('*');
       // Avoid filtering by updated_at since the column may not exist on the server schema
-      const { data, error } = await safeQuery<any[]>(() => q.then((r) => r), `pull ${table}`);
+      const { data, error } = await safeQuery<any[]>(() => q.then((r: any) => r), `pull ${table}`);
       if (error) throw error;
       if (data && data.length) {
         const tx = db.transaction('rw', db.table(table), async () => {
