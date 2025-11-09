@@ -24,11 +24,19 @@ export async function pushOutbox() {
       const table = item.table as TableName
       const row = item.row
       if (item.op === 'delete') {
-        const { error } = await safeQuery(
-          () => supabase.from(table).delete().eq('id', row.id).then((r: any) => r),
-          `delete ${table}`,
-        )
-        if (error) throw error
+        if (table === 'txns') {
+          const { error } = await safeQuery(
+            () => supabase.from('txns').update({ deleted_at: new Date().toISOString() }).eq('id', row.id).then((r: any) => r),
+            `soft-delete ${table}`,
+          )
+          if (error) throw error
+        } else {
+          const { error } = await safeQuery(
+            () => supabase.from(table).delete().eq('id', row.id).then((r: any) => r),
+            `delete ${table}`,
+          )
+          if (error) throw error
+        }
       } else {
         // Whitelist columns to avoid schema mismatches between client cache and server
         let payload: any

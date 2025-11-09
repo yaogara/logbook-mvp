@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-// import { getSupabase } from '../lib/supabase'
-import { supabase } from '../lib/supabase'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
 import type { Txn, TxnType } from '../types'
-import { Link } from 'react-router-dom'
 import { fullSync } from '../lib/sync'
+import { useToast } from '../components/ToastProvider'
 
 // const supabase = getSupabase()
 
 export default function Home() {
+  const { show } = useToast()
   const [online, setOnline] = useState<boolean>(navigator.onLine)
   const [recent, setRecent] = useState<Txn[]>([])
   const [verticals, setVerticals] = useState<{ id: string; name: string }[]>([])
@@ -62,7 +61,7 @@ export default function Home() {
     const items = await db.txns
       .orderBy('updated_at')
       .reverse()
-      .filter((t) => !t.deleted)
+      .filter((t) => !t.deleted && !(t as any).deleted_at)
       .limit(10)
       .toArray()
     setRecent(items)
@@ -118,34 +117,24 @@ export default function Home() {
 
   async function applyDelete() {
     if (!deleting) return
-    await queueDelete('txns', deleting.id)
-    setDeleting(null)
-    await loadRecent()
-    if (navigator.onLine) await fullSync()
+    try {
+      await queueDelete('txns', deleting.id)
+      setDeleting(null)
+      await loadRecent()
+      if (navigator.onLine) await fullSync()
+      show({ variant: 'success', title: 'Movimiento eliminado' })
+    } catch (err: any) {
+      show({ variant: 'error', title: 'No se pudo eliminar', description: String(err?.message || err) })
+      // eslint-disable-next-line no-console
+      console.error('[delete] failed', err)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div>
       <OfflineBanner />
-      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-800">Yaogará</h1>
-          <div className="flex items-center gap-3">
-            <StatusBadge online={online} />
-            <Link
-              to="/dashboard"
-              className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1.5 text-sm font-medium text-slate-700 transition"
-            >Dashboard</Link>
-            <button
-              onClick={() => supabase.auth.signOut()}
-              className="rounded-full bg-slate-100 hover:bg-slate-200 px-4 py-1.5 text-sm font-medium text-slate-700 transition"
-            >Sign out</button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-10">
-        <section className="bg-white/90 border border-white shadow-xl shadow-green-100/40 rounded-3xl p-6 sm:p-8">
+      <div className="space-y-10">
+        <section className="card p-6 sm:p-8">
           <div className="flex items-baseline justify-between gap-4 mb-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Registrar movimiento</h2>
@@ -170,7 +159,7 @@ export default function Home() {
                 onChange={(e) => setAmount(e.target.value)}
                 required
                 placeholder="0.00"
-                className="w-full md:w-2/3 lg:w-1/2 rounded-[2rem] border-2 border-emerald-100 bg-white px-8 py-6 text-center text-4xl font-semibold tracking-tight text-slate-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                className="w-full md:w-2/3 lg:w-1/2 rounded-[2rem] border-2 border-emerald-100 bg-white px-8 py-6 text-center text-4xl font-semibold tracking-tight text-slate-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
               />
             </div>
 
@@ -247,18 +236,14 @@ export default function Home() {
             </div>
 
             <div className="flex justify-end">
-              <button
-                disabled={saving}
-                type="submit"
-                className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/30 transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+              <button disabled={saving} type="submit" className="btn-primary disabled:cursor-not-allowed disabled:opacity-60 px-6">
                 {saving ? 'Guardando…' : 'Guardar movimiento'}
               </button>
             </div>
           </form>
         </section>
 
-        <section className="bg-white/95 border border-white rounded-3xl shadow-xl shadow-slate-200/60 p-6 sm:p-8">
+        <section className="card p-6 sm:p-8">
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Actividad reciente</h2>
@@ -287,9 +272,7 @@ export default function Home() {
             </ul>
           )}
         </section>
-
-        {/* Account info moved to header */}
-      </main>
+      </div>
 
       {editing && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
@@ -369,14 +352,5 @@ export default function Home() {
         </div>
       )}
     </div>
-  )
-}
-
-function StatusBadge({ online }: { online: boolean }) {
-  return (
-    <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full ${online ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-      <span className={`inline-block w-2 h-2 rounded-full ${online ? 'bg-green-600' : 'bg-gray-400'}`} />
-      {online ? 'Online' : 'Offline'}
-    </span>
   )
 }
