@@ -137,21 +137,21 @@ export default function Home() {
         <section className="card p-6 sm:p-8">
           <div className="flex items-baseline justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Registrar movimiento</h2>
-              <p className="text-sm text-slate-500">Capturá ingresos y gastos en segundos.</p>
+              <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Registrar movimiento</h2>
+              <p className="text-sm text-[rgb(var(--muted))]">Capturá ingresos y gastos en segundos.</p>
             </div>
             <span
               className={`hidden md:inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition ${
-                online ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                online ? 'bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
               }`}
             >
-              <span className={`block h-2 w-2 rounded-full ${online ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+              <span className={`block h-2 w-2 rounded-full ${online ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--muted))]'}`} />
               {online ? 'Sincronizado' : 'Sin conexión'}
             </span>
           </div>
           <form onSubmit={saveTxn} className="space-y-8">
             <div className="flex flex-col items-center gap-3 text-center">
-              <label className="text-sm font-medium uppercase tracking-[0.2em] text-slate-400">Monto</label>
+              <label className="text-sm font-medium uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Monto</label>
               <input
                 type="number"
                 step="0.01"
@@ -159,19 +159,19 @@ export default function Home() {
                 onChange={(e) => setAmount(e.target.value)}
                 required
                 placeholder="0.00"
-                className="w-full md:w-2/3 lg:w-1/2 rounded-[2rem] border-2 border-emerald-100 bg-white px-8 py-6 text-center text-4xl font-semibold tracking-tight text-slate-900 shadow-sm transition focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
+                className="w-full md:w-2/3 lg:w-1/2 rounded-[2rem] border-2 border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-8 py-6 text-center text-4xl font-semibold tracking-tight text-[rgb(var(--fg))] shadow-sm transition focus:border-[rgb(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
               />
             </div>
 
             <div className="flex justify-center">
-              <div className="inline-flex rounded-full bg-slate-100 p-1 shadow-inner">
+              <div className="inline-flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
                 <button
                   type="button"
                   onClick={() => setType('income')}
                   className={`rounded-full px-5 py-2 text-sm font-medium transition ${
                     type === 'income'
-                      ? 'bg-white text-emerald-600 shadow'
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-[rgb(var(--primary))] text-white shadow-lg'
+                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
                   }`}
                 >Ingreso</button>
                 <button
@@ -179,8 +179,8 @@ export default function Home() {
                   onClick={() => setType('expense')}
                   className={`rounded-full px-5 py-2 text-sm font-medium transition ${
                     type === 'expense'
-                      ? 'bg-white text-emerald-600 shadow'
-                      : 'text-slate-500 hover:text-slate-700'
+                      ? 'bg-[rgb(var(--primary))] text-white shadow-lg'
+                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
                   }`}
                 >Gasto</button>
               </div>
@@ -188,21 +188,21 @@ export default function Home() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-600">Fecha</label>
+                <label className="text-sm font-medium text-[rgb(var(--muted))]">Fecha</label>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   required
-                  className="w-full rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm text-slate-700 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  className="input"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-600">Vertical</label>
+                <label className="text-sm font-medium text-[rgb(var(--muted))]">Vertical</label>
                 <select
                   value={verticalId}
                   onChange={(e) => setVerticalId(e.target.value)}
-                  className="w-full rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm text-slate-700 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  className="input"
                 >
                   <option value="">Seleccioná una opción</option>
                   {verticals.map((v) => (
@@ -211,11 +211,11 @@ export default function Home() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-600">Categoría</label>
+                <label className="text-sm font-medium text-[rgb(var(--muted))]">Categoría</label>
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm text-slate-700 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  className="input"
                 >
                   <option value="">Seleccioná una opción</option>
                   {filteredCategories.map((c) => (
@@ -224,12 +224,12 @@ export default function Home() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-600">Descripción</label>
+                <label className="text-sm font-medium text-[rgb(var(--muted))]">Descripción</label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm text-slate-700 shadow-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                  className="input"
                   placeholder="Opcional"
                 />
               </div>
@@ -246,26 +246,26 @@ export default function Home() {
         <section className="card p-6 sm:p-8">
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">Actividad reciente</h2>
-              <p className="text-sm text-slate-500">Tus últimos movimientos sincronizados.</p>
+              <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Actividad reciente</h2>
+              <p className="text-sm text-[rgb(var(--muted))]">Tus últimos movimientos sincronizados.</p>
             </div>
           </div>
           {recent.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-sm text-slate-500">
-              <span className="text-base font-medium text-slate-600">No transactions yet — add your first one above!</span>
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] py-10 text-center text-sm text-[rgb(var(--muted))]">
+              <span className="text-base font-medium text-[rgb(var(--fg))]">No transactions yet — add your first one above!</span>
             </div>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-[rgb(var(--border))]">
               {recent.map((t) => (
                 <li key={t.id} className="py-3 flex items-center justify-between gap-3">
                   <div>
-                    <div className="text-sm font-medium text-slate-800">{t.description || (t.type === 'expense' ? 'Gasto' : 'Ingreso')}</div>
-                    <div className="text-xs text-gray-500">{t.date}</div>
+                    <div className="text-sm font-medium text-[rgb(var(--fg))]">{t.description || (t.type === 'expense' ? 'Gasto' : 'Ingreso')}</div>
+                    <div className="text-xs text-[rgb(var(--muted))]">{t.date}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className={`text-sm font-semibold ${t.type==='expense' ? 'text-red-600' : 'text-green-700'}`}>{t.type==='expense' ? '-' : '+'}${t.amount.toFixed(2)}</div>
-                    <button onClick={() => setEditing(t)} className="text-sm font-medium text-slate-600 transition hover:text-slate-900">Editar</button>
-                    <button onClick={() => setDeleting(t)} className="text-sm font-medium text-red-600 transition hover:text-red-700">Eliminar</button>
+                    <div className={`text-sm font-semibold ${t.type==='expense' ? 'text-red-400' : 'text-green-400'}`}>{t.type==='expense' ? '-' : '+'}${t.amount.toFixed(2)}</div>
+                    <button onClick={() => setEditing(t)} className="text-sm font-medium text-[rgb(var(--muted))] transition hover:text-[rgb(var(--fg))]">Editar</button>
+                    <button onClick={() => setDeleting(t)} className="text-sm font-medium text-red-400 transition hover:text-red-300">Eliminar</button>
                   </div>
                 </li>
               ))}
@@ -275,26 +275,26 @@ export default function Home() {
       </div>
 
       {editing && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl shadow-slate-900/10">
-            <h3 className="text-base font-semibold text-slate-900">Editar movimiento</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-md rounded-3xl bg-[rgb(var(--card))] p-6 shadow-xl border border-[rgb(var(--border))]">
+            <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Editar movimiento</h3>
             <div className="mt-4 grid grid-cols-1 gap-3">
               <input
                 type="number"
                 step="0.01"
                 value={editing.amount}
                 onChange={(e) => setEditing({ ...editing, amount: Number(e.target.value) })}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                className="input"
               />
               <div className="flex justify-center">
-                <div className="inline-flex w-full justify-between rounded-full bg-slate-100 p-1">
+                <div className="inline-flex w-full justify-between rounded-full bg-[rgb(var(--input-bg))] p-1 border border-[rgb(var(--border))]">
                   <button
                     type="button"
                     onClick={() => setEditing({ ...editing, type: 'income' })}
                     className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
                       editing.type === 'income'
-                        ? 'bg-white text-emerald-600 shadow'
-                        : 'text-slate-500 hover:text-slate-700'
+                        ? 'bg-[rgb(var(--primary))] text-white shadow-lg'
+                        : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
                     }`}
                   >Ingreso</button>
                   <button
@@ -302,8 +302,8 @@ export default function Home() {
                     onClick={() => setEditing({ ...editing, type: 'expense' })}
                     className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
                       editing.type === 'expense'
-                        ? 'bg-white text-emerald-600 shadow'
-                        : 'text-slate-500 hover:text-slate-700'
+                        ? 'bg-[rgb(var(--primary))] text-white shadow-lg'
+                        : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
                     }`}
                   >Gasto</button>
                 </div>
@@ -312,39 +312,39 @@ export default function Home() {
                 type="date"
                 value={editing.date}
                 onChange={(e) => setEditing({ ...editing, date: e.target.value })}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                className="input"
               />
               <input
                 type="text"
                 value={editing.description || ''}
                 onChange={(e) => setEditing({ ...editing, description: e.target.value })}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-2.5 text-sm text-slate-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
+                className="input"
                 placeholder="Descripción"
               />
             </div>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => setEditing(null)} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200">Cancelar</button>
-              <button onClick={applyEdit} className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700">Guardar</button>
+            <div className="flex justify-end gap-2 mt-4">
+              <button onClick={() => setEditing(null)} className="btn-muted">Cancelar</button>
+              <button onClick={applyEdit} className="btn-primary">Guardar</button>
             </div>
           </div>
         </div>
       )}
 
       {deleting && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl shadow-slate-900/10">
-            <h3 className="text-base font-semibold text-slate-900">Eliminar movimiento</h3>
-            <p className="mt-2 text-sm text-slate-600">¿Seguro que querés eliminar este movimiento? Esta acción no se puede deshacer.</p>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="w-full max-w-md rounded-3xl bg-[rgb(var(--card))] p-6 shadow-xl border border-[rgb(var(--border))]">
+            <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Eliminar movimiento</h3>
+            <p className="mt-2 text-sm text-[rgb(var(--muted))]">¿Seguro que querés eliminar este movimiento? Esta acción no se puede deshacer.</p>
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setDeleting(null)} className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-200">Cancelar</button>
-              <button onClick={applyDelete} className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-700">Eliminar</button>
+              <button onClick={() => setDeleting(null)} className="btn-muted">Cancelar</button>
+              <button onClick={applyDelete} className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-red-700">Eliminar</button>
             </div>
           </div>
         </div>
       )}
 
       {showSuccess && (
-        <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-medium text-white shadow-xl shadow-emerald-800/40 sm:left-auto sm:right-6 sm:translate-x-0">
+        <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-2xl bg-[rgb(var(--primary))] px-5 py-3 text-sm font-medium text-white shadow-xl shadow-[rgb(var(--primary))]/40 sm:left-auto sm:right-6 sm:translate-x-0">
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6 9 17l-5-5" />
           </svg>
