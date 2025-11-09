@@ -53,6 +53,13 @@ export async function pushOutbox() {
             category_id,
             description,
           }
+          // Defensive: never send a 'date' column to the server
+          delete (payload as any).date
+          if ((import.meta as any)?.env?.DEV) {
+            // Debug: ensure we are not sending an unknown 'date' column
+            // eslint-disable-next-line no-console
+            console.debug('[sync] upserting txns payload', payload)
+          }
         } else if (table === 'verticals') {
           const allowed = ['id','name'] as const
           payload = Object.fromEntries(
