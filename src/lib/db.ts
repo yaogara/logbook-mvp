@@ -19,7 +19,9 @@ export interface Txn {
   id: string
   amount: number
   type: 'income' | 'expense'
+  currency: 'COP' | 'USD' | 'EUR'
   date: string
+  time: string
   vertical_id?: string | null
   category_id?: string | null
   description?: string

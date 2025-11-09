@@ -21,8 +21,6 @@ export default function Home() {
   const [amount, setAmount] = useState<string>('')
   const [type, setType] = useState<TxnType>('expense')
   const [currency, setCurrency] = useState<Currency>('COP')
-  const [date, setDate] = useState<string>(new Date().toISOString().slice(0, 10))
-  const [time, setTime] = useState<string>(new Date().toTimeString().slice(0, 5))
   const [verticalId, setVerticalId] = useState<string>('')
   const [categoryId, setCategoryId] = useState<string>('')
   const [description, setDescription] = useState<string>('')
@@ -73,8 +71,6 @@ export default function Home() {
     setAmount('')
     setType('expense')
     setCurrency('COP')
-    setDate(new Date().toISOString().slice(0, 10))
-    setTime(new Date().toTimeString().slice(0, 5))
     setVerticalId('')
     setCategoryId('')
     setDescription('')
@@ -89,8 +85,8 @@ export default function Home() {
         amount: Number(amount),
         type,
         currency,
-        date,
-        time,
+        date: '', // Will be set by server
+        time: '', // Will be set by server
         vertical_id: verticalId || null,
         category_id: categoryId || null,
         description: description || undefined,
@@ -112,8 +108,6 @@ export default function Home() {
       amount: editing.amount,
       type: editing.type,
       currency: editing.currency,
-      date: editing.date,
-      time: editing.time,
       vertical_id: editing.vertical_id ?? null,
       category_id: editing.category_id ?? null,
       description: editing.description ?? undefined,
@@ -195,26 +189,6 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[rgb(var(--muted))]">Fecha</label>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                  className="input"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[rgb(var(--muted))]">Hora</label>
-                <input
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  required
-                  className="input"
-                />
-              </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-[rgb(var(--muted))]">Moneda</label>
                 <select
@@ -339,20 +313,6 @@ export default function Home() {
                     }`}
                   >Gasto</button>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  type="date"
-                  value={editing.date}
-                  onChange={(e) => setEditing({ ...editing, date: e.target.value })}
-                  className="input"
-                />
-                <input
-                  type="time"
-                  value={editing.time || ''}
-                  onChange={(e) => setEditing({ ...editing, time: e.target.value })}
-                  className="input"
-                />
               </div>
               <select
                 value={editing.currency || 'COP'}

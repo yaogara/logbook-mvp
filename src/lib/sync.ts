@@ -45,15 +45,12 @@ export async function pushOutbox() {
           const amount = row.amount
           const type = row.type === 'income' ? 'Ingreso' : 'Gasto'
           const currency = row.currency || 'COP'
-          // Combine date and time into ISO timestamp for server
-          const dateStr = row.date || new Date().toISOString().slice(0, 10)
-          const timeStr = row.time || '00:00'
-          const occurred_on = `${dateStr}T${timeStr}:00.000Z`
           const vertical_id = row.vertical_id ?? null
           const category_id = row.category_id ?? null
           const description = row.description ?? null
           const id = row.id // we generate UUIDs locally; send as id
           const client_id = row.id // also set client_id for traceability
+          
           payload = {
             id,
             client_id,
@@ -61,11 +58,19 @@ export async function pushOutbox() {
             amount,
             type,
             currency,
-            occurred_on,
             vertical_id,
             category_id,
             description,
           }
+          
+          // Only send occurred_on if we have date/time (for edits)
+          // For new records, let Supabase set it via default NOW()
+          if (row.date && row.time) {
+            const dateStr = row.date
+            const timeStr = row.time
+            payload.occurred_on = `${dateStr}T${timeStr}:00.000Z`
+          }
+          
           // Defensive: never send a 'date' or 'time' column to the server
           delete (payload as any).date
           delete (payload as any).time
@@ -119,6 +124,12 @@ export async function pullSince() {
       if (data && data.length) {
         const tx = db.transaction('rw', db.table(table), async () => {
           for (const row of data as any[]) {
+            // Map server occurred_on back to local date/time for txns
+            if (table === 'txns' && row.occurred_on) {
+              const dt = new Date(row.occurred_on)
+              row.date = dt.toISOString().slice(0, 10)
+              row.time = dt.toTimeString().slice(0, 5)
+            }
             await (db.table(table) as any).put(row);
           }
         });
