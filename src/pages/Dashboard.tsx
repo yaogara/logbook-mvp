@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase, safeQuery } from '../lib/supabase'
 import Loader from '../components/Loader'
 import { OfflineBanner } from '../components/OfflineBanner'
+import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 type Txn = {
   id: string
@@ -11,6 +12,7 @@ type Txn = {
   vertical_id?: string | null
   category_id?: string | null
   description?: string
+  occurred_on?: string
 }
 
 type CurrencyTotals = {
@@ -66,9 +68,11 @@ export default function Dashboard() {
       }
       
       const amount = Number(txn.amount) || 0
-      if (txn.type === 'Ingreso') {
+      // Normalize type to handle both formats: 'income'/'expense' and 'Ingreso'/'Gasto'
+      const normalizedType = txn.type.toLowerCase()
+      if (normalizedType === 'ingreso' || normalizedType === 'income') {
         grouped[currency].ingresos += amount
-      } else if (txn.type === 'Gasto') {
+      } else if (normalizedType === 'gasto' || normalizedType === 'expense') {
         grouped[currency].gastos += amount
       }
     })
@@ -85,6 +89,53 @@ export default function Dashboard() {
       return a.currency.localeCompare(b.currency)
     })
   }, [txns])
+
+  // Prepare data for spending over time chart
+  const spendingOverTime = useMemo(() => {
+    const grouped: Record<string, { date: string; ingresos: number; gastos: number }> = {}
+    
+    txns.forEach(txn => {
+      // Extract date from occurred_on or use date field
+      const date = txn.occurred_on ? new Date(txn.occurred_on).toISOString().slice(0, 10) : (txn as any).date
+      if (!date) return
+      
+      if (!grouped[date]) {
+        grouped[date] = { date, ingresos: 0, gastos: 0 }
+      }
+      
+      const amount = Number(txn.amount) || 0
+      const normalizedType = txn.type.toLowerCase()
+      if (normalizedType === 'ingreso' || normalizedType === 'income') {
+        grouped[date].ingresos += amount
+      } else if (normalizedType === 'gasto' || normalizedType === 'expense') {
+        grouped[date].gastos += amount
+      }
+    })
+    
+    return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date)).slice(-30) // Last 30 days
+  }, [txns])
+
+  // Prepare data for category breakdown (COP only for simplicity)
+  const categoryBreakdown = useMemo(() => {
+    const grouped: Record<string, number> = {}
+    
+    txns.forEach(txn => {
+      if (txn.currency !== 'COP') return // Focus on main currency
+      const normalizedType = txn.type.toLowerCase()
+      if (normalizedType !== 'gasto' && normalizedType !== 'expense') return // Only expenses
+      
+      const category = txn.category_id || 'Sin categoría'
+      const amount = Number(txn.amount) || 0
+      grouped[category] = (grouped[category] || 0) + amount
+    })
+    
+    return Object.entries(grouped)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5) // Top 5 categories
+  }, [txns])
+
+  const COLORS = ['#CB6C3E', '#DF8A5C', '#948E78', '#5A645F', '#C8D7D0']
 
   return (
     <div>
@@ -112,6 +163,63 @@ export default function Dashboard() {
             </div>
           </section>
         ))}
+
+        {/* Spending Over Time Chart */}
+        {spendingOverTime.length > 0 && (
+          <section className="card p-6 space-y-4">
+            <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Tendencia de gastos (últimos 30 días)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={spendingOverTime}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" />
+                <XAxis dataKey="date" stroke="rgb(var(--muted))" />
+                <YAxis stroke="rgb(var(--muted))" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'rgb(var(--card))', 
+                    border: '1px solid rgb(var(--border))',
+                    borderRadius: '8px'
+                  }} 
+                />
+                <Legend />
+                <Line type="monotone" dataKey="ingresos" stroke="#10b981" strokeWidth={2} name="Ingresos" />
+                <Line type="monotone" dataKey="gastos" stroke="#ef4444" strokeWidth={2} name="Gastos" />
+              </LineChart>
+            </ResponsiveContainer>
+          </section>
+        )}
+
+        {/* Category Breakdown Pie Chart */}
+        {categoryBreakdown.length > 0 && (
+          <section className="card p-6 space-y-4">
+            <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Top 5 categorías de gastos (COP)</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={categoryBreakdown}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {categoryBreakdown.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'rgb(var(--card))', 
+                    border: '1px solid rgb(var(--border))',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value: number) => formatAmount(value, 'COP')}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </section>
+        )}
 
         {error && (
           <div className="rounded-lg border border-red-400/20 bg-red-500/10 text-red-400 px-4 py-3 text-sm">

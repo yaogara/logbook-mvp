@@ -3,6 +3,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import Auth from './components/Auth'
 import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
+import History from './pages/History'
+import Contributors from './pages/Contributors'
 import { getSupabase } from './lib/supabase'
 import { installConnectivitySync, fullSync } from './lib/sync'
 import './index.css'
@@ -79,6 +81,26 @@ export default function App() {
             <ProtectedRoute authed={authed}>
               <AppShell>
                 <Dashboard />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <ProtectedRoute authed={authed}>
+              <AppShell>
+                <History />
+              </AppShell>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contributors"
+          element={
+            <ProtectedRoute authed={authed}>
+              <AppShell>
+                <Contributors />
               </AppShell>
             </ProtectedRoute>
           }
