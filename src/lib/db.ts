@@ -14,6 +14,7 @@ export interface MetaRow { key: string; value: string }
 
 export interface Vertical { id: string; name: string; updated_at: string }
 export interface Category { id: string; vertical_id?: string | null; name: string; updated_at: string }
+export interface Contributor { id: string; email: string; updated_at: string }
 
 export interface Txn {
   id: string
@@ -24,6 +25,7 @@ export interface Txn {
   time: string
   vertical_id?: string | null
   category_id?: string | null
+  contributor_id?: string | null
   description?: string
   created_at: string
   updated_at: string
@@ -35,6 +37,7 @@ export interface LogbookTables {
   outbox: OutboxItem
   verticals: Vertical
   categories: Category
+  contributors: Contributor
   meta: MetaRow
 }
 
@@ -43,6 +46,7 @@ export class LogbookDB extends Dexie {
   outbox!: Dexie.Table<OutboxItem, number>
   verticals!: Dexie.Table<Vertical, string>
   categories!: Dexie.Table<Category, string>
+  contributors!: Dexie.Table<Contributor, string>
   meta!: Dexie.Table<MetaRow, string>
 
   constructor() {
@@ -52,6 +56,14 @@ export class LogbookDB extends Dexie {
       outbox: '++id, ts, table, op',
       verticals: 'id, updated_at',
       categories: 'id, updated_at, vertical_id',
+      meta: '&key',
+    })
+    this.version(2).stores({
+      txns: 'id, updated_at, date, type',
+      outbox: '++id, ts, table, op',
+      verticals: 'id, updated_at',
+      categories: 'id, updated_at, vertical_id',
+      contributors: 'id, updated_at',
       meta: '&key',
     })
   }

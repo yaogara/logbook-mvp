@@ -1,7 +1,7 @@
 import { getSupabase, safeQuery } from './supabase'
 import { db, setLastSync } from './db'
 
-type TableName = 'txns' | 'verticals' | 'categories'
+type TableName = 'txns' | 'verticals' | 'categories' | 'contributors'
 
 export async function pushOutbox() {
   if (!navigator.onLine) {
@@ -21,7 +21,7 @@ export async function pushOutbox() {
     for (const item of items) {
       try {
         if (!['insert', 'update', 'delete'].includes(item.op)) continue
-        if (!['txns', 'verticals', 'categories'].includes(item.table as string)) continue
+        if (!['txns', 'verticals', 'categories', 'contributors'].includes(item.table as string)) continue
         const table = item.table as TableName
         const row = item.row
         if (item.op === 'delete') {
@@ -48,6 +48,7 @@ export async function pushOutbox() {
             const currency = row.currency || 'COP'
             const vertical_id = row.vertical_id ?? null
             const category_id = row.category_id ?? null
+            const contributor_id = row.contributor_id ?? null
             const description = row.description ?? null
             const id = row.id // we generate UUIDs locally; send as id
             const client_id = row.id // also set client_id for traceability
@@ -72,6 +73,7 @@ export async function pushOutbox() {
               occurred_on,
               vertical_id,
               category_id,
+              contributor_id,
               description,
             }
             
@@ -90,6 +92,11 @@ export async function pushOutbox() {
             )
           } else if (table === 'categories') {
             const allowed = ['id','name','vertical_id'] as const
+            payload = Object.fromEntries(
+              Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
+            )
+          } else if (table === 'contributors') {
+            const allowed = ['id','email'] as const
             payload = Object.fromEntries(
               Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
             )
@@ -123,7 +130,7 @@ export async function pullSince() {
   }
   const supabase = getSupabase();
   const now = new Date().toISOString();
-  for (const table of ['verticals', 'categories', 'txns']) {
+  for (const table of ['verticals', 'categories', 'contributors', 'txns']) {
     try {
       let q = supabase.from(table).select('*');
       // Avoid filtering by updated_at since the column may not exist on the server schema
@@ -135,8 +142,8 @@ export async function pullSince() {
             // Map server occurred_on back to local date/time for txns
             if (table === 'txns' && row.occurred_on) {
               const dt = new Date(row.occurred_on)
-              row.date = dt.toISOString().slice(0, 10)
-              row.time = dt.toTimeString().slice(0, 5)
+              row.date = dt.toISOString().slice(0, 10)  // YYYY-MM-DD (UTC)
+              row.time = dt.toISOString().slice(11, 16) // HH:MM (UTC)
             }
             await (db.table(table) as any).put(row);
           }

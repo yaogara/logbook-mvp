@@ -13,6 +13,7 @@ export default function Home() {
   const [recent, setRecent] = useState<Txn[]>([])
   const [verticals, setVerticals] = useState<{ id: string; name: string }[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string; vertical_id?: string | null }[]>([])
+  const [contributors, setContributors] = useState<{ id: string; email: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [editing, setEditing] = useState<Txn | null>(null)
@@ -24,6 +25,7 @@ export default function Home() {
   const [currency, setCurrency] = useState<Currency>('COP')
   const [verticalId, setVerticalId] = useState<string>('')
   const [categoryId, setCategoryId] = useState<string>('')
+  const [contributorId, setContributorId] = useState<string>('')
   const [description, setDescription] = useState<string>('')
 
   const filteredCategories = useMemo(
@@ -53,9 +55,14 @@ export default function Home() {
   }, [showSuccess])
 
   async function loadDropdowns() {
-    const [v, c] = await Promise.all([db.verticals.toArray(), db.categories.toArray()])
+    const [v, c, contrib] = await Promise.all([
+      db.verticals.toArray(), 
+      db.categories.toArray(),
+      db.contributors.toArray()
+    ])
     setVerticals(v)
     setCategories(c)
+    setContributors(contrib)
   }
 
   async function loadRecent() {
@@ -91,6 +98,7 @@ export default function Home() {
     setCurrency('COP')
     setVerticalId('')
     setCategoryId('')
+    setContributorId('')
     setDescription('')
   }
 
@@ -107,6 +115,7 @@ export default function Home() {
         time: '', // Will be set by server
         vertical_id: verticalId || null,
         category_id: categoryId || null,
+        contributor_id: contributorId || null,
         description: description || undefined,
         deleted: false,
       } as any
@@ -128,6 +137,7 @@ export default function Home() {
       currency: editing.currency,
       vertical_id: editing.vertical_id ?? null,
       category_id: editing.category_id ?? null,
+      contributor_id: editing.contributor_id ?? null,
       description: editing.description ?? undefined,
     } as any)
     setEditing(null)
@@ -242,6 +252,19 @@ export default function Home() {
                   <option value="">Seleccioná una opción</option>
                   {filteredCategories.map((c) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-[rgb(var(--muted))]">Colaborador</label>
+                <select
+                  value={contributorId}
+                  onChange={(e) => setContributorId(e.target.value)}
+                  className="input"
+                >
+                  <option value="">Seleccioná una opción</option>
+                  {contributors.map((contrib) => (
+                    <option key={contrib.id} value={contrib.id}>{contrib.email}</option>
                   ))}
                 </select>
               </div>
@@ -374,6 +397,16 @@ export default function Home() {
                 <option value="COP">COP - Peso colombiano</option>
                 <option value="USD">USD - Dólar</option>
                 <option value="EUR">EUR - Euro</option>
+              </select>
+              <select
+                value={editing.contributor_id || ''}
+                onChange={(e) => setEditing({ ...editing, contributor_id: e.target.value || null })}
+                className="input"
+              >
+                <option value="">Colaborador (opcional)</option>
+                {contributors.map((contrib) => (
+                  <option key={contrib.id} value={contrib.id}>{contrib.email}</option>
+                ))}
               </select>
               <input
                 type="text"
