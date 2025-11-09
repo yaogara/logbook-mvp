@@ -24,8 +24,13 @@ export async function pushOutbox() {
         )
         if (error) throw error
       } else {
+        // Avoid sending fields not present on the server schema (e.g., created_at)
+        const payload: any = { ...row }
+        if (table === 'txns') {
+          delete payload.created_at
+        }
         const { error } = await safeQuery(
-          () => supabase.from(table).upsert(row, { onConflict: 'id' }).then((r) => r),
+          () => supabase.from(table).upsert(payload, { onConflict: 'id' }).then((r) => r),
           `upsert ${table}`,
         )
         if (error) throw error
