@@ -3,6 +3,16 @@ import { logSupaError } from './supaLog'
 
 let client: SupabaseClient | null = null
 
+// Custom fetch with timeout
+function fetchWithTimeout(url: RequestInfo | URL, options?: RequestInit, timeout = 10000): Promise<Response> {
+  return Promise.race([
+    fetch(url, options),
+    new Promise<Response>((_, reject) =>
+      setTimeout(() => reject(new Error('Request timeout')), timeout)
+    ),
+  ])
+}
+
 export function getSupabase() {
   if (client) return client
   const url = import.meta.env.VITE_SUPABASE_URL as string
@@ -15,8 +25,21 @@ export function getSupabase() {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      storageKey: 'supabase.auth.token',
+      flowType: 'pkce',
     },
-    global: { fetch: (...args) => fetch(...args) },
+    global: {
+      fetch: (url: RequestInfo | URL, options: RequestInit = {}) => {
+        // Add timeout to all requests
+        return fetchWithTimeout(url, options, 10000).catch((err) => {
+          // Suppress repetitive network errors in console
+          if (err.message === 'Request timeout' || err.message === 'Failed to fetch') {
+            console.debug('⚠️ Network request failed:', url);
+          }
+          throw err;
+        });
+      },
+    },
   })
   console.log('✅ Supabase client initialized:', url);
   return client

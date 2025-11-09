@@ -9,106 +9,111 @@ export async function pushOutbox() {
     return 0
   }
   const supabase = getSupabase()
-  const { data: userRes } = await supabase.auth.getUser()
-  const userId = userRes?.user?.id
-  if (!userId) {
-    console.warn('⚠️ No authenticated user; skipping pushOutbox')
+  try {
+    const { data: userRes, error } = await supabase.auth.getUser()
+    if (error || !userRes?.user?.id) {
+      console.warn('⚠️ No authenticated user; skipping pushOutbox')
+      return 0
+    }
+    const userId = userRes.user.id
+    const items = await db.outbox.orderBy('ts').toArray()
+    let processed = 0
+    for (const item of items) {
+      try {
+        if (!['insert', 'update', 'delete'].includes(item.op)) continue
+        if (!['txns', 'verticals', 'categories'].includes(item.table as string)) continue
+        const table = item.table as TableName
+        const row = item.row
+        if (item.op === 'delete') {
+          if (table === 'txns') {
+            const { error } = await safeQuery(
+              () => supabase.from('txns').update({ deleted_at: new Date().toISOString() }).eq('id', row.id).then((r: any) => r),
+              `soft-delete ${table}`,
+            )
+            if (error) throw error
+          } else {
+            const { error } = await safeQuery(
+              () => supabase.from(table).delete().eq('id', row.id).then((r: any) => r),
+              `delete ${table}`,
+            )
+            if (error) throw error
+          }
+        } else {
+          // Whitelist columns to avoid schema mismatches between client cache and server
+          let payload: any
+          if (table === 'txns') {
+            // Map local fields to server schema
+            const amount = row.amount
+            const type = row.type === 'income' ? 'Ingreso' : 'Gasto'
+            const currency = row.currency || 'COP'
+            const vertical_id = row.vertical_id ?? null
+            const category_id = row.category_id ?? null
+            const description = row.description ?? null
+            const id = row.id // we generate UUIDs locally; send as id
+            const client_id = row.id // also set client_id for traceability
+            
+            // Generate occurred_on timestamp
+            let occurred_on: string
+            if (row.date && row.time) {
+              // Use existing date/time from edits or synced data
+              occurred_on = `${row.date}T${row.time}:00.000Z`
+            } else {
+              // New record: use current timestamp
+              occurred_on = new Date().toISOString()
+            }
+            
+            payload = {
+              id,
+              client_id,
+              user_id: userId,
+              amount,
+              type,
+              currency,
+              occurred_on,
+              vertical_id,
+              category_id,
+              description,
+            }
+            
+            // Defensive: never send a 'date' or 'time' column to the server
+            delete (payload as any).date
+            delete (payload as any).time
+            if ((import.meta as any)?.env?.DEV) {
+              // Debug: ensure we are not sending an unknown 'date' column
+              // eslint-disable-next-line no-console
+              console.debug('[sync] upserting txns payload', payload)
+            }
+          } else if (table === 'verticals') {
+            const allowed = ['id','name'] as const
+            payload = Object.fromEntries(
+              Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
+            )
+          } else if (table === 'categories') {
+            const allowed = ['id','name','vertical_id'] as const
+            payload = Object.fromEntries(
+              Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
+            )
+          } else {
+            payload = row
+          }
+          const { error } = await safeQuery(
+            () => supabase.from(table).upsert(payload, { onConflict: 'id' }).then((r: any) => r),
+            `upsert ${table}`,
+          )
+          if (error) throw error
+        }
+        await db.outbox.delete(item.id!)
+        processed++
+      } catch (err) {
+        // Stop on first failure to avoid spinning
+        break
+      }
+    }
+    return processed
+  } catch (err) {
+    console.warn('⚠️ pushOutbox failed:', err)
     return 0
   }
-  const items = await db.outbox.orderBy('ts').toArray()
-  let processed = 0
-  for (const item of items) {
-    try {
-      if (!['insert', 'update', 'delete'].includes(item.op)) continue
-      if (!['txns', 'verticals', 'categories'].includes(item.table as string)) continue
-      const table = item.table as TableName
-      const row = item.row
-      if (item.op === 'delete') {
-        if (table === 'txns') {
-          const { error } = await safeQuery(
-            () => supabase.from('txns').update({ deleted_at: new Date().toISOString() }).eq('id', row.id).then((r: any) => r),
-            `soft-delete ${table}`,
-          )
-          if (error) throw error
-        } else {
-          const { error } = await safeQuery(
-            () => supabase.from(table).delete().eq('id', row.id).then((r: any) => r),
-            `delete ${table}`,
-          )
-          if (error) throw error
-        }
-      } else {
-        // Whitelist columns to avoid schema mismatches between client cache and server
-        let payload: any
-        if (table === 'txns') {
-          // Map local fields to server schema
-          const amount = row.amount
-          const type = row.type === 'income' ? 'Ingreso' : 'Gasto'
-          const currency = row.currency || 'COP'
-          const vertical_id = row.vertical_id ?? null
-          const category_id = row.category_id ?? null
-          const description = row.description ?? null
-          const id = row.id // we generate UUIDs locally; send as id
-          const client_id = row.id // also set client_id for traceability
-          
-          // Generate occurred_on timestamp
-          let occurred_on: string
-          if (row.date && row.time) {
-            // Use existing date/time from edits or synced data
-            occurred_on = `${row.date}T${row.time}:00.000Z`
-          } else {
-            // New record: use current timestamp
-            occurred_on = new Date().toISOString()
-          }
-          
-          payload = {
-            id,
-            client_id,
-            user_id: userId,
-            amount,
-            type,
-            currency,
-            occurred_on,
-            vertical_id,
-            category_id,
-            description,
-          }
-          
-          // Defensive: never send a 'date' or 'time' column to the server
-          delete (payload as any).date
-          delete (payload as any).time
-          if ((import.meta as any)?.env?.DEV) {
-            // Debug: ensure we are not sending an unknown 'date' column
-            // eslint-disable-next-line no-console
-            console.debug('[sync] upserting txns payload', payload)
-          }
-        } else if (table === 'verticals') {
-          const allowed = ['id','name'] as const
-          payload = Object.fromEntries(
-            Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
-          )
-        } else if (table === 'categories') {
-          const allowed = ['id','name','vertical_id'] as const
-          payload = Object.fromEntries(
-            Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
-          )
-        } else {
-          payload = row
-        }
-        const { error } = await safeQuery(
-          () => supabase.from(table).upsert(payload, { onConflict: 'id' }).then((r: any) => r),
-          `upsert ${table}`,
-        )
-        if (error) throw error
-      }
-      await db.outbox.delete(item.id!)
-      processed++
-    } catch (err) {
-      // Stop on first failure to avoid spinning
-      break
-    }
-  }
-  return processed
 }
 
 export async function pullSince() {

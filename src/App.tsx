@@ -22,9 +22,21 @@ export default function App() {
 
     // Wait for session AND auth state
     const initAuth = async () => {
-      const { data } = await sb.auth.getSession()
-      setAuthed(!!data.session)
-      setReady(true)
+      try {
+        const { data, error } = await sb.auth.getSession()
+        if (error) {
+          console.warn('⚠️ Session initialization error:', error.message)
+          // Continue with no auth if session fetch fails
+          setAuthed(false)
+        } else {
+          setAuthed(!!data.session)
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to initialize session:', err)
+        setAuthed(false)
+      } finally {
+        setReady(true)
+      }
     }
 
     initAuth()
