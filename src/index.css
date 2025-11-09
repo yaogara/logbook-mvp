@@ -4,36 +4,37 @@
 
 @layer base {
   :root {
-    /* Light mode - darker blue-grey inspired by example */
-    --bg: 30 41 59; /* slate-800 */
-    --bg-gradient-from: 30 41 59; /* slate-800 */
-    --bg-gradient-to: 51 65 85; /* slate-700 */
-    --fg: 248 250 252; /* slate-50 */
-    --muted: 148 163 184; /* slate-400 */
-    --primary: 236 72 153; /* pink-500 accent inspired by example */
-    --primary-600: 219 39 119; /* pink-600 */
-    --primary-700: 190 24 93; /* pink-700 */
-    --ring: 244 114 182; /* pink-400 */
-    --card: 51 65 85; /* slate-700 */
-    --card-hover: 71 85 105; /* slate-600 */
-    --border: 71 85 105; /* slate-600 */
-    --input-bg: 30 41 59; /* slate-800 */
+    /* Earthy theme - dark green background with warm accents */
+    --bg: 24 44 37; /* Deep forest green #182C25 */
+    --bg-gradient-from: 24 44 37; /* forest green */
+    --bg-gradient-to: 34 59 50; /* lighter forest green */
+    --fg: 250 247 239; /* Warm cream #FAF7EF */
+    --muted: 168 162 140; /* Warm tan #A8A28C */
+    --primary: 203 108 62; /* Terracotta #CB6C3E */
+    --primary-600: 180 88 48; /* Darker terracotta #B45830 */
+    --primary-700: 156 72 38; /* Deep terracotta #9C4826 */
+    --ring: 223 138 92; /* Light terracotta #DF8A5C */
+    --card: 45 68 58; /* Sage green #2D443A */
+    --card-hover: 55 82 70; /* Lighter sage #375246 */
+    --border: 65 95 82; /* Olive border #415F52 */
+    --input-bg: 34 54 46; /* Dark olive #22362E */
   }
 
   .dark {
-    --bg: 15 23 42; /* slate-900 */
-    --bg-gradient-from: 15 23 42;
-    --bg-gradient-to: 30 41 59; /* slate-800 */
-    --fg: 241 245 249; /* slate-100 */
-    --muted: 148 163 184; /* slate-400 */
-    --primary: 236 72 153; /* pink-500 */
-    --primary-600: 219 39 119;
-    --primary-700: 190 24 93;
-    --ring: 244 114 182;
-    --card: 30 41 59; /* slate-800 */
-    --card-hover: 51 65 85; /* slate-700 */
-    --border: 51 65 85; /* slate-700 */
-    --input-bg: 15 23 42; /* slate-900 */
+    /* Darker earthy theme for dark mode */
+    --bg: 18 32 27; /* Deeper forest #12201B */
+    --bg-gradient-from: 18 32 27;
+    --bg-gradient-to: 24 44 37; /* forest green */
+    --fg: 250 247 239; /* Warm cream */
+    --muted: 148 142 120; /* Muted tan #948E78 */
+    --primary: 203 108 62; /* Terracotta */
+    --primary-600: 180 88 48;
+    --primary-700: 156 72 38;
+    --ring: 223 138 92;
+    --card: 34 54 46; /* Dark sage #22362E */
+    --card-hover: 45 68 58; /* Sage green */
+    --border: 55 82 70; /* Dark olive */
+    --input-bg: 24 40 34; /* Very dark olive #182822 */
   }
 
   html, body, #root {
