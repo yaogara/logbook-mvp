@@ -35,7 +35,7 @@ export async function pushOutbox() {
         if (table === 'txns') {
           // Map local fields to server schema
           const amount = row.amount
-          const type = row.type
+          const type = row.type === 'income' ? 'Ingreso' : 'Gasto'
           const occurred_on = row.date // local 'date' -> server 'occurred_on'
           const vertical_id = row.vertical_id ?? null
           const category_id = row.category_id ?? null
