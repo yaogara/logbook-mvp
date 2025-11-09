@@ -190,8 +190,8 @@ export default function Home() {
                   onClick={() => setType('income')}
                   className={`rounded-full px-5 py-2 text-sm font-medium transition ${
                     type === 'income'
-                      ? 'bg-[rgb(var(--primary))] text-white shadow-lg'
-                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
+                      ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
+                      : 'text-[rgb(var(--muted))] hover:text-green-600'
                   }`}
                 >Ingreso</button>
                 <button
@@ -199,8 +199,8 @@ export default function Home() {
                   onClick={() => setType('expense')}
                   className={`rounded-full px-5 py-2 text-sm font-medium transition ${
                     type === 'expense'
-                      ? 'bg-[rgb(var(--primary))] text-white shadow-lg'
-                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
+                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                      : 'text-[rgb(var(--muted))] hover:text-red-600'
                   }`}
                 >Gasto</button>
               </div>
@@ -335,8 +335,8 @@ export default function Home() {
                     onClick={() => setEditing({ ...editing, type: 'income' })}
                     className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
                       editing.type === 'income'
-                        ? 'bg-[rgb(var(--primary))] text-white shadow-lg'
-                        : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
+                        ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
+                        : 'text-[rgb(var(--muted))] hover:text-green-600'
                     }`}
                   >Ingreso</button>
                   <button
@@ -344,8 +344,8 @@ export default function Home() {
                     onClick={() => setEditing({ ...editing, type: 'expense' })}
                     className={`flex-1 rounded-full px-4 py-2 text-sm font-medium transition ${
                       editing.type === 'expense'
-                        ? 'bg-[rgb(var(--primary))] text-white shadow-lg'
-                        : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
+                        ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                        : 'text-[rgb(var(--muted))] hover:text-red-600'
                     }`}
                   >Gasto</button>
                 </div>
