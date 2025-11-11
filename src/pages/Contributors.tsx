@@ -8,12 +8,19 @@ type ContributorBalance = {
   contributor_id: string
   contributor_email: string
   balance: number
+  currency: string | null
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('es-CO', { 
+type SupabaseContributorBalance = Omit<ContributorBalance, 'balance'> & {
+  balance: number | string | null
+}
+
+function formatCurrency(amount: number, currency: string | null | undefined): string {
+  const currencyCode = currency || 'COP'
+  const locale = currencyCode === 'USD' ? 'en-US' : 'es-CO'
+  return new Intl.NumberFormat(locale, { 
     style: 'currency', 
-    currency: 'COP',
+    currency: currencyCode,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
   }).format(amount)
@@ -31,18 +38,24 @@ export default function Contributors() {
     setLoading(true)
     setError(null)
     try {
-      const { data, error } = await safeQuery<ContributorBalance[]>(
+      const { data, error } = await safeQuery<SupabaseContributorBalance[]>(
         () =>
           supabase
             .from('contributor_balances')
-            .select('*')
+            .select('contributor_id, contributor_email, balance, currency')
             .then((r) => r),
         'load contributor balances',
       )
       if (error) throw error
-      setBalances((data as ContributorBalance[]) ?? [])
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load contributor balances')
+      const normalized = (data ?? []).map((row) => ({
+        ...row,
+        balance: typeof row.balance === 'string' ? parseFloat(row.balance) : row.balance ?? 0,
+        currency: row.currency ?? null,
+      })) as ContributorBalance[]
+      setBalances(normalized)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load contributor balances'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -52,11 +65,25 @@ export default function Contributors() {
     void loadBalances()
   }, [])
 
-  const totalBalance = balances.reduce((sum, b) => sum + (b.balance || 0), 0)
+  const totalsByCurrency = balances.reduce<Record<string, number>>((sumByCurrency, b) => {
+    const key = b.currency || 'COP'
+    const current = sumByCurrency[key] ?? 0
+    return {
+      ...sumByCurrency,
+      [key]: current + (b.balance || 0),
+    }
+  }, {})
 
   const visibleBalances = showOnlyNonZero
     ? balances.filter(b => b.balance !== 0)
     : balances
+
+  const balancesByCurrency = visibleBalances.reduce<Record<string, ContributorBalance[]>>((grouped, balance) => {
+    const key = balance.currency || 'COP'
+    if (!grouped[key]) grouped[key] = []
+    grouped[key].push(balance)
+    return grouped
+  }, {})
 
   async function handleSettle(contributorId: string, email: string) {
     if (settling) return
@@ -75,11 +102,12 @@ export default function Contributors() {
       
       // Reload balances after settlement
       await loadBalances()
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
       show({ 
         variant: 'error', 
         title: 'Settlement failed', 
-        description: err?.message || 'Unknown error' 
+        description: message 
       })
     } finally {
       setSettling(null)
@@ -92,38 +120,43 @@ export default function Contributors() {
       <div className="space-y-6">
         {/* Summary Card */}
         <section 
-          className={`card p-6 sm:p-8 border-2 transition ${
-            totalBalance > 0 
-              ? 'border-green-400/30 bg-green-500/5' 
-              : totalBalance < 0 
-              ? 'border-red-400/30 bg-red-500/5' 
-              : 'border-[rgb(var(--border))]'
-          }`}
+          className="card p-6 sm:p-8 border-2 transition border-[rgb(var(--border))]"
         >
           <h2 className="text-lg font-semibold text-[rgb(var(--fg))] mb-2">
             Yaogará Balance Overview
           </h2>
-          <div className="flex items-baseline gap-2">
-            <span className="text-sm text-[rgb(var(--muted))]">Total Outstanding:</span>
-            <span 
-              className={`text-2xl font-bold ${
-                totalBalance > 0 
-                  ? 'text-green-400' 
-                  : totalBalance < 0 
-                  ? 'text-red-400' 
-                  : 'text-[rgb(var(--fg))]'
-              }`}
-            >
-              {formatCurrency(totalBalance)}
-            </span>
+          <div className="space-y-2">
+            {Object.keys(totalsByCurrency).length === 0 && (
+              <p className="text-sm text-[rgb(var(--muted))]">No balances recorded yet.</p>
+            )}
+            {Object.entries(totalsByCurrency).map(([currency, amount]) => (
+              <div key={currency}>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm text-[rgb(var(--muted))]">
+                    Outstanding ({currency}):
+                  </span>
+                  <span
+                    className={`text-2xl font-bold ${
+                      amount > 0
+                        ? 'text-green-400'
+                        : amount < 0
+                        ? 'text-red-400'
+                        : 'text-[rgb(var(--fg))]'
+                    }`}
+                  >
+                    {formatCurrency(amount, currency)}
+                  </span>
+                </div>
+                <p className="text-xs text-[rgb(var(--muted))] mt-1">
+                  {amount > 0
+                    ? '🟢 Yaogará is owed money'
+                    : amount < 0
+                    ? '🔴 Yaogará owes money'
+                    : 'All balances settled'}
+                </p>
+              </div>
+            ))}
           </div>
-          <p className="text-xs text-[rgb(var(--muted))] mt-2">
-            {totalBalance > 0 
-              ? '🟢 Yaogará is owed money' 
-              : totalBalance < 0 
-              ? '🔴 Yaogará owes money' 
-              : 'All balances settled'}
-          </p>
         </section>
 
         {/* Filter Toggle */}
@@ -184,86 +217,95 @@ export default function Contributors() {
 
         {/* Contributor Cards */}
         {!loading && visibleBalances.length > 0 && (
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {visibleBalances.map((contributor) => (
-              <div
-                key={contributor.contributor_id}
-                className={`card p-5 transition hover:shadow-lg ${
-                  contributor.balance !== 0 ? 'border-l-4' : ''
-                } ${
-                  contributor.balance > 0 
-                    ? 'border-l-green-400' 
-                    : contributor.balance < 0 
-                    ? 'border-l-red-400' 
-                    : ''
-                }`}
-              >
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[rgb(var(--card-hover))] flex items-center justify-center">
-                    <span className="text-sm font-medium">
-                      {contributor.contributor_email.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[rgb(var(--fg))] truncate" title={contributor.contributor_email}>
-                      📧 {contributor.contributor_email}
+          <div className="space-y-10">
+            {Object.entries(balancesByCurrency).map(([currency, contributors]) => (
+              <section key={currency}>
+                <h3 className="text-sm font-semibold text-[rgb(var(--muted))] uppercase tracking-wide mb-3">
+                  {currency} balances
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {contributors.map((contributor) => (
+                    <div
+                      key={`${currency}-${contributor.contributor_id}`}
+                      className={`card p-5 transition hover:shadow-lg ${
+                        contributor.balance !== 0 ? 'border-l-4' : ''
+                      } ${
+                        contributor.balance > 0 
+                          ? 'border-l-green-400' 
+                          : contributor.balance < 0 
+                          ? 'border-l-red-400' 
+                          : ''
+                      }`}
+                    >
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[rgb(var(--card-hover))] flex items-center justify-center">
+                          <span className="text-sm font-medium">
+                            {contributor.contributor_email.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-[rgb(var(--fg))] truncate" title={contributor.contributor_email}>
+                            📧 {contributor.contributor_email}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <div className="text-xs text-[rgb(var(--muted))] mb-1">Balance</div>
+                        <div 
+                          className={`text-xl font-bold ${
+                            contributor.balance > 0 
+                              ? 'text-green-400' 
+                              : contributor.balance < 0 
+                              ? 'text-red-400' 
+                              : 'text-[rgb(var(--fg))]'
+                          }`}
+                        >
+                          💰 {formatCurrency(contributor.balance, contributor.currency)}
+                        </div>
+                        {contributor.balance > 0 && (
+                          <div className="text-xs text-green-400/80 mt-1">
+                            Yaogará is owed
+                          </div>
+                        )}
+                        {contributor.balance < 0 && (
+                          <div className="text-xs text-red-400/80 mt-1">
+                            Yaogará owes
+                          </div>
+                        )}
+                      </div>
+
+                      {contributor.balance !== 0 && (
+                        <button
+                          onClick={() => handleSettle(contributor.contributor_id, contributor.contributor_email)}
+                          disabled={settling === contributor.contributor_id}
+                          className="w-full btn-primary disabled:opacity-60 disabled:cursor-not-allowed text-sm py-2"
+                        >
+                          {settling === contributor.contributor_id ? (
+                            <span className="flex items-center justify-center gap-2">
+                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" opacity="0.25" />
+                                <path d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
+                              </svg>
+                              Settling…
+                            </span>
+                          ) : (
+                            'Settle'
+                          )}
+                        </button>
+                      )}
+
+                      {contributor.balance === 0 && (
+                        <div className="text-center text-xs text-[rgb(var(--muted))] py-2">
+                          ✓ Settled
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  ))}
                 </div>
-
-                <div className="mb-4">
-                  <div className="text-xs text-[rgb(var(--muted))] mb-1">Balance</div>
-                  <div 
-                    className={`text-xl font-bold ${
-                      contributor.balance > 0 
-                        ? 'text-green-400' 
-                        : contributor.balance < 0 
-                        ? 'text-red-400' 
-                        : 'text-[rgb(var(--fg))]'
-                    }`}
-                  >
-                    💰 {formatCurrency(contributor.balance)}
-                  </div>
-                  {contributor.balance > 0 && (
-                    <div className="text-xs text-green-400/80 mt-1">
-                      Yaogará is owed
-                    </div>
-                  )}
-                  {contributor.balance < 0 && (
-                    <div className="text-xs text-red-400/80 mt-1">
-                      Yaogará owes
-                    </div>
-                  )}
-                </div>
-
-                {contributor.balance !== 0 && (
-                  <button
-                    onClick={() => handleSettle(contributor.contributor_id, contributor.contributor_email)}
-                    disabled={settling === contributor.contributor_id}
-                    className="w-full btn-primary disabled:opacity-60 disabled:cursor-not-allowed text-sm py-2"
-                  >
-                    {settling === contributor.contributor_id ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="10" opacity="0.25" />
-                          <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
-                        </svg>
-                        Settling…
-                      </span>
-                    ) : (
-                      'Settle'
-                    )}
-                  </button>
-                )}
-
-                {contributor.balance === 0 && (
-                  <div className="text-center text-xs text-[rgb(var(--muted))] py-2">
-                    ✓ Settled
-                  </div>
-                )}
-              </div>
+              </section>
             ))}
-          </section>
+          </div>
         )}
 
         {/* No Results After Filtering */}
