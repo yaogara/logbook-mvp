@@ -251,56 +251,70 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <select
+                    value={verticalId}
+                    onChange={(e) => setVerticalId(e.target.value)}
+                    className="input w-full"
+                  >
+                    <option value="">Vertical</option>
+                    {verticals.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name} {v.description ? `- ${v.description}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <select
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className="input w-full"
+                  >
+                    <option value="">Categoría</option>
+                    {filteredCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.description ? `- ${c.description}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <input
+                    type="date"
+                    value={new Date().toISOString().split('T')[0]}
+                    className="input w-full"
+                    disabled
+                  />
+                </div>
+                <div>
+                  <select
+                    value={contributorId}
+                    onChange={(e) => setContributorId(e.target.value)}
+                    className="input w-full"
+                  >
+                    <option value="">Colaborador</option>
+                    {contributors.map((contrib) => (
+                      <option key={contrib.id} value={contrib.id}>
+                        {contrib.name || contrib.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div>
-                <select
-                  value={verticalId}
-                  onChange={(e) => setVerticalId(e.target.value)}
-                  className="input"
-                >
-                  <option value="">Seleccionar vertical</option>
-                  {verticals.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name} {v.description ? `- ${v.description}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <select
-                  value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
-                  className="input"
-                >
-                  <option value="">Seleccionar categoría</option>
-                  {filteredCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.description ? `- ${c.description}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[rgb(var(--muted))]">Colaborador</label>
-                <select
-                  value={contributorId}
-                  onChange={(e) => setContributorId(e.target.value)}
-                  className="input"
-                >
-                  <option value="">Seleccioná una opción</option>
-                  {contributors.map((contrib) => (
-                    <option key={contrib.id} value={contrib.id}>{contrib.name || contrib.email}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[rgb(var(--muted))]">Descripción</label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="input"
-                  placeholder="Opcional"
+                  className="input w-full"
+                  placeholder="Descripción (opcional)"
                 />
               </div>
             </div>
