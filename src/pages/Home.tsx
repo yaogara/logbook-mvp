@@ -179,7 +179,13 @@ export default function Home() {
     <div>
       <OfflineBanner />
       <div className="space-y-10">
-        <section className="card p-6 sm:p-8">
+        <section
+          className={`card p-6 sm:p-8 transition-colors duration-300 ${
+            type === 'income'
+              ? 'bg-green-500/5 border-green-500/20'
+              : 'bg-red-500/5 border-red-500/20'
+          }`}
+        >
           <div className="flex items-baseline justify-between gap-4 mb-6">
             <div>
               <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Registrar movimiento</h2>
