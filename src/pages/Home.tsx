@@ -12,8 +12,8 @@ export default function Home() {
   const { show } = useToast()
   const [online, setOnline] = useState<boolean>(navigator.onLine)
   const [recent, setRecent] = useState<Txn[]>([])
-  const [verticals, setVerticals] = useState<{ id: string; name: string }[]>([])
-  const [categories, setCategories] = useState<{ id: string; name: string; vertical_id?: string | null }[]>([])
+  const [verticals, setVerticals] = useState<{ id: string; name: string; description?: string }[]>([])
+  const [categories, setCategories] = useState<{ id: string; name: string; description?: string; vertical_id?: string | null }[]>([])
   const [contributors, setContributors] = useState<{ id: string; email: string; name?: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -252,29 +252,31 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[rgb(var(--muted))]">Vertical</label>
+              <div>
                 <select
                   value={verticalId}
                   onChange={(e) => setVerticalId(e.target.value)}
                   className="input"
                 >
-                  <option value="">Seleccioná una opción</option>
+                  <option value="">Seleccionar vertical</option>
                   {verticals.map((v) => (
-                    <option key={v.id} value={v.id}>{v.name}</option>
+                    <option key={v.id} value={v.id}>
+                      {v.name} {v.description ? `- ${v.description}` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[rgb(var(--muted))]">Categoría</label>
+              <div>
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
                   className="input"
                 >
-                  <option value="">Seleccioná una opción</option>
+                  <option value="">Seleccionar categoría</option>
                   {filteredCategories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>
+                      {c.name} {c.description ? `- ${c.description}` : ''}
+                    </option>
                   ))}
                 </select>
               </div>
