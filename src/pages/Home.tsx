@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
 import type { Txn, TxnType, Currency } from '../types'
-import { fullSync } from '../lib/sync'
+import { fullSync, fetchContributors } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
 
 // const supabase = getSupabase()
@@ -58,7 +58,7 @@ export default function Home() {
     const [v, c, contrib] = await Promise.all([
       db.verticals.toArray(), 
       db.categories.toArray(),
-      db.contributors.toArray()
+      fetchContributors()
     ])
     setVerticals(v)
     setCategories(c)

@@ -1,7 +1,7 @@
 import { getSupabase, safeQuery } from './supabase'
 import { db, setLastSync } from './db'
 
-type TableName = 'txns' | 'verticals' | 'categories' | 'contributors'
+type TableName = 'txns' | 'verticals' | 'categories'
 
 export async function pushOutbox() {
   if (!navigator.onLine) {
@@ -21,7 +21,7 @@ export async function pushOutbox() {
     for (const item of items) {
       try {
         if (!['insert', 'update', 'delete'].includes(item.op)) continue
-        if (!['txns', 'verticals', 'categories', 'contributors'].includes(item.table as string)) continue
+        if (!['txns', 'verticals', 'categories'].includes(item.table as string)) continue
         const table = item.table as TableName
         const row = item.row
         if (item.op === 'delete') {
@@ -100,11 +100,6 @@ export async function pushOutbox() {
             payload = Object.fromEntries(
               Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
             )
-          } else if (table === 'contributors') {
-            const allowed = ['id','email'] as const
-            payload = Object.fromEntries(
-              Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
-            )
           } else {
             payload = row
           }
@@ -135,7 +130,8 @@ export async function pullSince() {
   }
   const supabase = getSupabase();
   const now = new Date().toISOString();
-  for (const table of ['verticals', 'categories', 'contributors', 'txns']) {
+  // Note: contributors table doesn't exist in Supabase - contributor_id references auth.users
+  for (const table of ['verticals', 'categories', 'txns']) {
     try {
       let q = supabase.from(table).select('*');
       // Avoid filtering by updated_at since the column may not exist on the server schema
@@ -165,6 +161,46 @@ export async function pullSince() {
 export async function fullSync() {
   await pushOutbox()
   await pullSince()
+}
+
+export async function fetchContributors() {
+  if (!navigator.onLine) {
+    console.warn('⚠️ Offline mode: loading contributors from cache')
+    return await db.contributors.toArray()
+  }
+  
+  const supabase = getSupabase()
+  try {
+    // Try to fetch from a view or use RPC to get user list
+    // First try contributor_balances view which has contributor info
+    const { data, error } = await safeQuery<any[]>(
+      () => supabase.from('contributor_balances').select('contributor_id, contributor_email').then((r: any) => r),
+      'fetch contributors'
+    )
+    
+    if (!error && data && data.length > 0) {
+      // Cache in IndexedDB
+      const contributors = data.map(row => ({
+        id: row.contributor_id,
+        email: row.contributor_email,
+        updated_at: new Date().toISOString()
+      }))
+      
+      // Store in local DB
+      await db.transaction('rw', db.contributors, async () => {
+        for (const contrib of contributors) {
+          await db.contributors.put(contrib)
+        }
+      })
+      
+      return contributors
+    }
+  } catch (err) {
+    console.warn('⚠️ Failed to fetch contributors:', err)
+  }
+  
+  // Fallback to cached data
+  return await db.contributors.toArray()
 }
 
 export function installConnectivitySync() {
