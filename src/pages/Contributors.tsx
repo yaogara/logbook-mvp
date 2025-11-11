@@ -104,14 +104,16 @@ export default function Contributors() {
       const amount = Math.abs(contributor.balance || 0)
       if (amount === 0) return
 
-      const settlementType: Txn['type'] =
-        contributor.balance > 0 ? 'income' : 'expense'
+      const contributorTxnType: Txn['type'] =
+        contributor.balance > 0 ? 'expense' : 'income'
+      const offsetTxnType: Txn['type'] =
+        contributorTxnType === 'income' ? 'expense' : 'income'
 
-      const txn: Omit<Txn, 'id' | 'created_at' | 'updated_at'> = {
+      const baseTxn: Omit<Txn, 'id' | 'created_at' | 'updated_at'> = {
         amount,
-        type: settlementType,
         currency: currency as Txn['currency'],
-        date: '', // server sets occurred_on
+        type: contributorTxnType,
+        date: '',
         time: '',
         vertical_id: null,
         category_id: null,
@@ -120,7 +122,17 @@ export default function Contributors() {
         deleted: false,
       } as any
 
-      await queueInsert('txns', txn)
+      await queueInsert('txns', baseTxn)
+
+      await queueInsert(
+        'txns',
+        {
+          ...baseTxn,
+          type: offsetTxnType,
+          contributor_id: null,
+          description: `Settlement offset (${currency})`,
+        } as any,
+      )
 
       if (navigator.onLine) {
         await fullSync()
@@ -129,7 +141,7 @@ export default function Contributors() {
       show({
         variant: 'success',
         title: `✅ Settlement recorded for ${contributor.contributor_name ?? contributor.contributor_email}`,
-        description: `${formatCurrency(amount, currency)} added as ${settlementType === 'income' ? 'income' : 'expense'}`,
+        description: `${formatCurrency(amount, currency)} booked as ${contributorTxnType} and offset without contributor`,
       })
 
       await loadBalances()
