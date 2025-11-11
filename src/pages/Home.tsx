@@ -175,16 +175,17 @@ export default function Home() {
     }
   }
 
+  const registrarCardClasses =
+    type === 'income'
+      ? 'bg-green-500/5 border-green-500/20 hover:bg-green-500/5 hover:border-green-500/20'
+      : 'bg-red-500/5 border-red-500/20 hover:bg-red-500/5 hover:border-red-500/20'
+
   return (
     <div>
       <OfflineBanner />
       <div className="space-y-10">
         <section
-          className={`card p-6 sm:p-8 transition-colors duration-300 ${
-            type === 'income'
-              ? 'bg-green-500/5 border-green-500/20'
-              : 'bg-red-500/5 border-red-500/20'
-          }`}
+          className={`card p-6 sm:p-8 transition-colors duration-300 ${registrarCardClasses}`}
         >
           <div className="flex items-baseline justify-between gap-4 mb-6">
             <div>
