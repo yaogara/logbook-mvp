@@ -24,6 +24,14 @@ export async function pushOutbox() {
         if (!['txns', 'verticals', 'categories'].includes(item.table as string)) continue
         const table = item.table as TableName
         const row = item.row
+        
+        // Sanitize contributor_id in txns outbox items to prevent FK violations
+        if (table === 'txns' && row.contributor_id !== undefined) {
+          // Convert empty strings or invalid values to null
+          if (!row.contributor_id || typeof row.contributor_id !== 'string' || row.contributor_id.trim() === '') {
+            row.contributor_id = null
+          }
+        }
         if (item.op === 'delete') {
           if (table === 'txns') {
             const { error } = await safeQuery(
@@ -130,8 +138,7 @@ export async function pullSince() {
   }
   const supabase = getSupabase();
   const now = new Date().toISOString();
-  // Note: contributors table doesn't exist in Supabase - contributor_id references auth.users
-  for (const table of ['verticals', 'categories', 'txns']) {
+  for (const table of ['verticals', 'categories', 'contributors', 'txns']) {
     try {
       let q = supabase.from(table).select('*');
       // Avoid filtering by updated_at since the column may not exist on the server schema
@@ -171,18 +178,18 @@ export async function fetchContributors() {
   
   const supabase = getSupabase()
   try {
-    // Try to fetch from a view or use RPC to get user list
-    // First try contributor_balances view which has contributor info
+    // Fetch from contributors table
     const { data, error } = await safeQuery<any[]>(
-      () => supabase.from('contributor_balances').select('contributor_id, contributor_email').then((r: any) => r),
+      () => supabase.from('contributors').select('id, email, name').then((r: any) => r),
       'fetch contributors'
     )
     
     if (!error && data && data.length > 0) {
       // Cache in IndexedDB
       const contributors = data.map(row => ({
-        id: row.contributor_id,
-        email: row.contributor_email,
+        id: row.id,
+        email: row.email,
+        name: row.name,
         updated_at: new Date().toISOString()
       }))
       

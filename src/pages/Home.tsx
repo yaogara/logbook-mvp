@@ -13,7 +13,7 @@ export default function Home() {
   const [recent, setRecent] = useState<Txn[]>([])
   const [verticals, setVerticals] = useState<{ id: string; name: string }[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string; vertical_id?: string | null }[]>([])
-  const [contributors, setContributors] = useState<{ id: string; email: string }[]>([])
+  const [contributors, setContributors] = useState<{ id: string; email: string; name?: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [editing, setEditing] = useState<Txn | null>(null)
@@ -264,7 +264,7 @@ export default function Home() {
                 >
                   <option value="">Seleccioná una opción</option>
                   {contributors.map((contrib) => (
-                    <option key={contrib.id} value={contrib.id}>{contrib.email}</option>
+                    <option key={contrib.id} value={contrib.id}>{contrib.name || contrib.email}</option>
                   ))}
                 </select>
               </div>
@@ -405,7 +405,7 @@ export default function Home() {
               >
                 <option value="">Colaborador (opcional)</option>
                 {contributors.map((contrib) => (
-                  <option key={contrib.id} value={contrib.id}>{contrib.email}</option>
+                  <option key={contrib.id} value={contrib.id}>{contrib.name || contrib.email}</option>
                 ))}
               </select>
               <input

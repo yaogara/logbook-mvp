@@ -14,7 +14,7 @@ export interface MetaRow { key: string; value: string }
 
 export interface Vertical { id: string; name: string; updated_at: string }
 export interface Category { id: string; vertical_id?: string | null; name: string; updated_at: string }
-export interface Contributor { id: string; email: string; updated_at: string }
+export interface Contributor { id: string; email: string; name?: string; updated_at: string }
 
 export interface Txn {
   id: string
