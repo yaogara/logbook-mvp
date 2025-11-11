@@ -13,6 +13,7 @@ type Txn = {
   category_id?: string | null
   description?: string
   occurred_on?: string
+  is_settlement?: boolean
 }
 
 type CurrencyTotals = {
@@ -46,7 +47,11 @@ export default function Dashboard() {
         'load txns',
       )
       if (error) throw error
-      setTxns((data as Txn[]) ?? [])
+      const normalized = (data ?? []).map((txn) => ({
+        ...txn,
+        is_settlement: Boolean((txn as any).is_settlement),
+      })) as Txn[]
+      setTxns(normalized)
     } catch (err: any) {
       setError(err?.message || 'Failed to load data')
     } finally {
@@ -58,10 +63,12 @@ export default function Dashboard() {
     void load()
   }, [])
 
+  const nonSettlementTxns = useMemo(() => txns.filter((txn) => !txn.is_settlement), [txns])
+
   const currencyTotals = useMemo(() => {
     const grouped: Record<string, CurrencyTotals> = {}
     
-    txns.forEach(txn => {
+    nonSettlementTxns.forEach(txn => {
       const currency = txn.currency || 'COP'
       if (!grouped[currency]) {
         grouped[currency] = { currency, ingresos: 0, gastos: 0, balance: 0 }
@@ -88,13 +95,13 @@ export default function Dashboard() {
       if (b.currency === 'COP') return 1
       return a.currency.localeCompare(b.currency)
     })
-  }, [txns])
+  }, [nonSettlementTxns])
 
   // Prepare data for spending over time chart
   const spendingOverTime = useMemo(() => {
     const grouped: Record<string, { date: string; ingresos: number; gastos: number }> = {}
     
-    txns.forEach(txn => {
+    nonSettlementTxns.forEach(txn => {
       // Extract date from occurred_on or use date field
       const date = txn.occurred_on ? new Date(txn.occurred_on).toISOString().slice(0, 10) : (txn as any).date
       if (!date) return
@@ -113,13 +120,13 @@ export default function Dashboard() {
     })
     
     return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date)).slice(-30) // Last 30 days
-  }, [txns])
+  }, [nonSettlementTxns])
 
   // Prepare data for category breakdown (COP only for simplicity)
   const categoryBreakdown = useMemo(() => {
     const grouped: Record<string, number> = {}
     
-    txns.forEach(txn => {
+    nonSettlementTxns.forEach(txn => {
       if (txn.currency !== 'COP') return // Focus on main currency
       const normalizedType = txn.type.toLowerCase()
       if (normalizedType !== 'gasto' && normalizedType !== 'expense') return // Only expenses
@@ -133,7 +140,7 @@ export default function Dashboard() {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5) // Top 5 categories
-  }, [txns])
+  }, [nonSettlementTxns])
 
   const COLORS = ['#CB6C3E', '#DF8A5C', '#948E78', '#5A645F', '#C8D7D0']
 
