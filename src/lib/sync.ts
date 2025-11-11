@@ -48,7 +48,8 @@ export async function pushOutbox() {
             const currency = row.currency || 'COP'
             const vertical_id = row.vertical_id ?? null
             const category_id = row.category_id ?? null
-            const contributor_id = row.contributor_id ?? null
+            // Convert empty strings to null for contributor_id
+            const contributor_id = row.contributor_id && row.contributor_id.trim() !== '' ? row.contributor_id : null
             const description = row.description ?? null
             const id = row.id // we generate UUIDs locally; send as id
             const client_id = row.id // also set client_id for traceability
@@ -73,8 +74,12 @@ export async function pushOutbox() {
               occurred_on,
               vertical_id,
               category_id,
-              contributor_id,
               description,
+            }
+            
+            // Only include contributor_id if it has a valid value
+            if (contributor_id !== null) {
+              payload.contributor_id = contributor_id
             }
             
             // Defensive: never send a 'date' or 'time' column to the server
