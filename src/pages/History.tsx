@@ -4,6 +4,7 @@ import { db, queueDelete, queueUpdate } from '../lib/db'
 import type { Txn, Currency } from '../types'
 import { fullSync } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
+import { normalizeTxn } from '../lib/transactions'
 
 export default function History() {
   const { show } = useToast()
@@ -41,7 +42,7 @@ export default function History() {
         db.verticals.toArray(),
         db.categories.toArray(),
       ])
-      setTransactions(txns)
+      setTransactions(txns.map((txn) => normalizeTxn(txn)))
       setVerticals(v)
       setCategories(c)
     } finally {
@@ -276,7 +277,7 @@ export default function History() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
-                      onClick={() => setEditing(txn)}
+                      onClick={() => setEditing(normalizeTxn(txn))}
                       className="p-2 text-[rgb(var(--muted))] transition hover:text-[rgb(var(--fg))] hover:bg-[rgb(var(--card-hover))] rounded"
                       aria-label="Editar"
                     >

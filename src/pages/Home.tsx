@@ -4,6 +4,7 @@ import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
 import type { Txn, TxnType, Currency } from '../types'
 import { fullSync, fetchContributors } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
+import { normalizeTxn } from '../lib/transactions'
 
 // const supabase = getSupabase()
 
@@ -72,7 +73,7 @@ export default function Home() {
       .filter((t) => !t.deleted && !(t as any).deleted_at)
       .limit(10)
       .toArray()
-    setRecent(items)
+    setRecent(items.map((item) => normalizeTxn(item)))
   }
 
   async function forceSync() {
@@ -340,7 +341,7 @@ export default function Home() {
                       {t.type==='expense' ? '-' : '+'}{t.currency || 'COP'} {t.amount.toFixed(2)}
                     </div>
                     <button 
-                      onClick={() => setEditing(t)} 
+                      onClick={() => setEditing(normalizeTxn(t))} 
                       className="p-1.5 text-[rgb(var(--muted))] transition hover:text-[rgb(var(--fg))] hover:bg-[rgb(var(--card-hover))] rounded"
                       aria-label="Editar"
                     >

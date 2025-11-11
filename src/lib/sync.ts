@@ -1,5 +1,6 @@
 import { getSupabase, safeQuery } from './supabase'
 import { db, setLastSync } from './db'
+import { normalizeTxnType } from './transactions'
 
 type TableName = 'txns' | 'verticals' | 'categories'
 
@@ -147,13 +148,23 @@ export async function pullSince() {
       if (data && data.length) {
         const tx = db.transaction('rw', db.table(table), async () => {
           for (const row of data as any[]) {
+            let normalizedRow = { ...row }
             // Map server occurred_on back to local date/time for txns
-            if (table === 'txns' && row.occurred_on) {
-              const dt = new Date(row.occurred_on)
-              row.date = dt.toISOString().slice(0, 10)  // YYYY-MM-DD (UTC)
-              row.time = dt.toISOString().slice(11, 16) // HH:MM (UTC)
+            if (table === 'txns') {
+              if (normalizedRow.occurred_on) {
+                const dt = new Date(normalizedRow.occurred_on)
+                normalizedRow.date = dt.toISOString().slice(0, 10)  // YYYY-MM-DD (UTC)
+                normalizedRow.time = dt.toISOString().slice(11, 16) // HH:MM (UTC)
+              }
+
+              normalizedRow.type = normalizeTxnType(normalizedRow.type)
+              const rawAmount =
+                typeof normalizedRow.amount === 'number'
+                  ? normalizedRow.amount
+                  : Number(normalizedRow.amount ?? 0)
+              normalizedRow.amount = Number.isFinite(rawAmount) ? Math.abs(rawAmount) : 0
             }
-            await (db.table(table) as any).put(row);
+            await (db.table(table) as any).put(normalizedRow);
           }
         });
         await tx;
