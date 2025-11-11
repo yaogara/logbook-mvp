@@ -120,6 +120,7 @@ export default function Contributors() {
         contributor_id: contributor.contributor_id,
         description: `Settlement (${currency})`,
         deleted: false,
+        is_settlement: true,
       } as any
 
       await queueInsert('txns', baseTxn)
@@ -131,6 +132,7 @@ export default function Contributors() {
           type: offsetTxnType,
           contributor_id: null,
           description: `Settlement offset (${currency})`,
+          is_settlement: true,
         } as any,
       )
 

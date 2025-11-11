@@ -34,6 +34,14 @@ export default function Home() {
     [categories, verticalId]
   )
 
+  function detectSettlement(desc: string | undefined | null, categoryIdValue: string | null | undefined): boolean {
+    const descriptionMatch = /settlement/i.test(desc ?? '')
+    if (descriptionMatch) return true
+    if (!categoryIdValue) return false
+    const category = categories.find((c) => c.id === categoryIdValue)
+    return category ? /settlement/i.test(category.name ?? '') : false
+  }
+
   useEffect(() => {
     function updateStatus() { setOnline(navigator.onLine) }
     window.addEventListener('online', updateStatus)
@@ -108,6 +116,7 @@ export default function Home() {
     if (!amount) return
     setSaving(true)
     try {
+      const isSettlement = detectSettlement(description, categoryId || null)
       const txn: Omit<Txn, 'id' | 'created_at' | 'updated_at'> = {
         amount: Number(amount),
         type,
@@ -119,6 +128,7 @@ export default function Home() {
         contributor_id: contributorId || null,
         description: description || undefined,
         deleted: false,
+        is_settlement: isSettlement,
       } as any
       await queueInsert('txns', txn as any)
       resetForm()
@@ -132,6 +142,7 @@ export default function Home() {
 
   async function applyEdit() {
     if (!editing) return
+    const isSettlement = detectSettlement(editing.description, editing.category_id ?? null)
     await queueUpdate('txns', editing.id, {
       amount: editing.amount,
       type: editing.type,
@@ -140,6 +151,7 @@ export default function Home() {
       category_id: editing.category_id ?? null,
       contributor_id: editing.contributor_id ?? null,
       description: editing.description ?? undefined,
+      is_settlement: isSettlement,
     } as any)
     setEditing(null)
     await loadRecent()

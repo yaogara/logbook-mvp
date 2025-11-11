@@ -30,6 +30,7 @@ export interface Txn {
   created_at: string
   updated_at: string
   deleted?: boolean
+  is_settlement?: boolean
 }
 
 export interface LogbookTables {
@@ -92,6 +93,9 @@ export async function queueInsert<T extends keyof LogbookTables>(
   const id = (row as any).id ?? genId()
   const now = new Date().toISOString()
   const record: any = { ...row, id, created_at: now, updated_at: now }
+  if (table === 'txns') {
+    record.is_settlement = Boolean((record as Txn).is_settlement)
+  }
   await (db.table(table) as any).put(record)
   await db.outbox.add({ table, op: 'insert', row: record, ts: Date.now() })
   return record as LogbookTables[T]
@@ -100,6 +104,9 @@ export async function queueInsert<T extends keyof LogbookTables>(
 export async function queueUpdate<T extends keyof LogbookTables>(table: T, id: any, changes: Partial<LogbookTables[T]>) {
   const now = new Date().toISOString()
   const record = { ...(changes as any), id, updated_at: now }
+  if (table === 'txns' && 'is_settlement' in record) {
+    record.is_settlement = Boolean(record.is_settlement)
+  }
   await (db.table(table) as any).update(id, record)
   await db.outbox.add({ table, op: 'update', row: record, ts: Date.now() })
 }

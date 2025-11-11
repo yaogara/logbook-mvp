@@ -30,6 +30,14 @@ export default function History() {
     loadData()
   }, [])
 
+  function detectSettlement(desc: string | undefined | null, categoryIdValue: string | null | undefined): boolean {
+    const descriptionMatch = /settlement/i.test(desc ?? '')
+    if (descriptionMatch) return true
+    if (!categoryIdValue) return false
+    const category = categories.find((c) => c.id === categoryIdValue)
+    return category ? /settlement/i.test(category.name ?? '') : false
+  }
+
   async function loadData() {
     setLoading(true)
     try {
@@ -100,6 +108,7 @@ export default function History() {
   async function handleEdit() {
     if (!editing) return
     try {
+      const isSettlement = detectSettlement(editing.description, editing.category_id ?? null)
       await queueUpdate('txns', editing.id, {
         amount: editing.amount,
         type: editing.type,
@@ -109,6 +118,7 @@ export default function History() {
         description: editing.description ?? undefined,
         date: editing.date,
         time: editing.time,
+        is_settlement: isSettlement,
       } as any)
       setEditing(null)
       await loadData()

@@ -90,6 +90,8 @@ export async function pushOutbox() {
             if (contributor_id !== null) {
               payload.contributor_id = contributor_id
             }
+
+            payload.is_settlement = Boolean(row.is_settlement)
             
             // Defensive: never send a 'date' or 'time' column to the server
             delete (payload as any).date
@@ -163,6 +165,7 @@ export async function pullSince() {
                   ? normalizedRow.amount
                   : Number(normalizedRow.amount ?? 0)
               normalizedRow.amount = Number.isFinite(rawAmount) ? Math.abs(rawAmount) : 0
+              normalizedRow.is_settlement = Boolean(normalizedRow.is_settlement)
             }
             await (db.table(table) as any).put(normalizedRow);
           }

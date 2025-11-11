@@ -20,5 +20,5 @@ export type Txn = {
   created_at: string
   updated_at: string
   deleted?: boolean
+  is_settlement?: boolean
 }
-
