@@ -11,8 +11,11 @@ type ContributorBalance = {
   currency: string | null
 }
 
-type SupabaseContributorBalance = Omit<ContributorBalance, 'balance'> & {
+type SupabaseContributorBalance = {
+  contributor_id: string
+  email: string | null
   balance: number | string | null
+  currency: string | null
 }
 
 function formatCurrency(amount: number, currency: string | null | undefined): string {
@@ -42,16 +45,17 @@ export default function Contributors() {
         () =>
           supabase
             .from('contributor_balances')
-            .select('contributor_id, contributor_email, balance, currency')
+            .select('contributor_id, email, balance, currency')
             .then((r) => r),
         'load contributor balances',
       )
       if (error) throw error
-      const normalized = (data ?? []).map((row) => ({
-        ...row,
+      const normalized = (data ?? []).map<ContributorBalance>((row) => ({
+        contributor_id: row.contributor_id,
+        contributor_email: row.email ?? 'Unknown contributor',
         balance: typeof row.balance === 'string' ? parseFloat(row.balance) : row.balance ?? 0,
         currency: row.currency ?? null,
-      })) as ContributorBalance[]
+      }))
       setBalances(normalized)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load contributor balances'
