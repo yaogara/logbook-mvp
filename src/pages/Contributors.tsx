@@ -7,6 +7,7 @@ import { useToast } from '../components/ToastProvider'
 type ContributorBalance = {
   contributor_id: string
   contributor_email: string
+  contributor_name: string | null
   balance: number
   currency: string | null
 }
@@ -14,6 +15,7 @@ type ContributorBalance = {
 type SupabaseContributorBalance = {
   contributor_id: string
   email: string | null
+  name: string | null
   balance: number | string | null
   currency: string | null
 }
@@ -45,7 +47,7 @@ export default function Contributors() {
         () =>
           supabase
             .from('contributor_balances')
-            .select('contributor_id, email, balance, currency')
+            .select('contributor_id, email, name, balance, currency')
             .then((r) => r),
         'load contributor balances',
       )
@@ -53,6 +55,7 @@ export default function Contributors() {
       const normalized = (data ?? []).map<ContributorBalance>((row) => ({
         contributor_id: row.contributor_id,
         contributor_email: row.email ?? 'Unknown contributor',
+        contributor_name: row.name,
         balance: typeof row.balance === 'string' ? parseFloat(row.balance) : row.balance ?? 0,
         currency: row.currency ?? null,
       }))
@@ -89,7 +92,7 @@ export default function Contributors() {
     return grouped
   }, {})
 
-  async function handleSettle(contributorId: string, email: string) {
+  async function handleSettle(contributorId: string, displayName: string) {
     if (settling) return
     setSettling(contributorId)
     try {
@@ -101,7 +104,7 @@ export default function Contributors() {
       
       show({ 
         variant: 'success', 
-        title: `✅ Settlement recorded for ${email}` 
+        title: `✅ Settlement recorded for ${displayName}` 
       })
       
       // Reload balances after settlement
@@ -244,12 +247,12 @@ export default function Contributors() {
                       <div className="flex items-start gap-3 mb-3">
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[rgb(var(--card-hover))] flex items-center justify-center">
                           <span className="text-sm font-medium">
-                            {contributor.contributor_email.charAt(0).toUpperCase()}
+                            {(contributor.contributor_name?.charAt(0) || contributor.contributor_email.charAt(0)).toUpperCase()}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-[rgb(var(--fg))] truncate" title={contributor.contributor_email}>
-                            📧 {contributor.contributor_email}
+                          <div className="text-sm font-medium text-[rgb(var(--fg))] truncate" title={contributor.contributor_name ?? contributor.contributor_email}>
+                            👤 {contributor.contributor_name ?? contributor.contributor_email}
                           </div>
                         </div>
                       </div>
@@ -281,7 +284,10 @@ export default function Contributors() {
 
                       {contributor.balance !== 0 && (
                         <button
-                          onClick={() => handleSettle(contributor.contributor_id, contributor.contributor_email)}
+                          onClick={() => handleSettle(
+                            contributor.contributor_id, 
+                            contributor.contributor_name ?? contributor.contributor_email
+                          )}
                           disabled={settling === contributor.contributor_id}
                           className="w-full btn-primary disabled:opacity-60 disabled:cursor-not-allowed text-sm py-2"
                         >
