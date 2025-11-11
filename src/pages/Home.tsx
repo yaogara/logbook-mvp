@@ -28,6 +28,7 @@ export default function Home() {
   const [categoryId, setCategoryId] = useState<string>('')
   const [contributorId, setContributorId] = useState<string>('')
   const [description, setDescription] = useState<string>('')
+  const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0])
 
   const filteredCategories = useMemo(
     () => categories.filter((c) => !verticalId || c.vertical_id === verticalId || c.vertical_id == null),
@@ -109,6 +110,7 @@ export default function Home() {
     setCategoryId('')
     setContributorId('')
     setDescription('')
+    setDate(new Date().toISOString().split('T')[0])
   }
 
   async function saveTxn(e: React.FormEvent) {
@@ -121,8 +123,8 @@ export default function Home() {
         amount: Number(amount),
         type,
         currency,
-        date: '', // Will be set by server
-        time: '', // Will be set by server
+        date,
+        time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
         vertical_id: verticalId || null,
         category_id: categoryId || null,
         contributor_id: contributorId || null,
@@ -252,7 +254,7 @@ export default function Home() {
             </div>
 
             <div className="grid grid-cols-1 gap-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <select
                     value={verticalId}
@@ -283,13 +285,14 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <input
                     type="date"
-                    value={new Date().toISOString().split('T')[0]}
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
                     className="input w-full"
-                    disabled
+                    max={new Date().toISOString().split('T')[0]}
                   />
                 </div>
                 <div>
