@@ -3,6 +3,9 @@ import { supabase, safeQuery } from '../lib/supabase'
 import Loader from '../components/Loader'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { useToast } from '../components/ToastProvider'
+import { queueInsert } from '../lib/db'
+import { fullSync } from '../lib/sync'
+import type { Txn } from '../types'
 
 type ContributorBalance = {
   contributor_id: string
@@ -92,22 +95,43 @@ export default function Contributors() {
     return grouped
   }, {})
 
-  async function handleSettle(contributorId: string, displayName: string) {
+  async function handleSettle(contributor: ContributorBalance) {
+    const currency = contributor.currency || 'COP'
+    const key = `${contributor.contributor_id}-${currency}`
     if (settling) return
-    setSettling(contributorId)
+    setSettling(key)
     try {
-      const { error } = await supabase.rpc('settle_contributor', { 
-        target: contributorId 
+      const amount = Math.abs(contributor.balance || 0)
+      if (amount === 0) return
+
+      const settlementType: Txn['type'] =
+        contributor.balance > 0 ? 'income' : 'expense'
+
+      const txn: Omit<Txn, 'id' | 'created_at' | 'updated_at'> = {
+        amount,
+        type: settlementType,
+        currency: currency as Txn['currency'],
+        date: '', // server sets occurred_on
+        time: '',
+        vertical_id: null,
+        category_id: null,
+        contributor_id: contributor.contributor_id,
+        description: `Settlement (${currency})`,
+        deleted: false,
+      } as any
+
+      await queueInsert('txns', txn)
+
+      if (navigator.onLine) {
+        await fullSync()
+      }
+
+      show({
+        variant: 'success',
+        title: `✅ Settlement recorded for ${contributor.contributor_name ?? contributor.contributor_email}`,
+        description: `${formatCurrency(amount, currency)} added as ${settlementType === 'income' ? 'income' : 'expense'}`,
       })
-      
-      if (error) throw error
-      
-      show({ 
-        variant: 'success', 
-        title: `✅ Settlement recorded for ${displayName}` 
-      })
-      
-      // Reload balances after settlement
+
       await loadBalances()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error'
@@ -284,14 +308,11 @@ export default function Contributors() {
 
                       {contributor.balance !== 0 && (
                         <button
-                          onClick={() => handleSettle(
-                            contributor.contributor_id, 
-                            contributor.contributor_name ?? contributor.contributor_email
-                          )}
-                          disabled={settling === contributor.contributor_id}
+                          onClick={() => handleSettle(contributor)}
+                          disabled={settling === `${contributor.contributor_id}-${contributor.currency || 'COP'}`}
                           className="w-full btn-primary disabled:opacity-60 disabled:cursor-not-allowed text-sm py-2"
                         >
-                          {settling === contributor.contributor_id ? (
+                          {settling === `${contributor.contributor_id}-${contributor.currency || 'COP'}` ? (
                             <span className="flex items-center justify-center gap-2">
                               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <circle cx="12" cy="12" r="10" opacity="0.25" />
