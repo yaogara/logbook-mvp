@@ -193,42 +193,52 @@ export default function Home() {
               />
             </div>
 
-            <div className="flex justify-center">
-              <div className="inline-flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
-                <button
-                  type="button"
-                  onClick={() => setType('income')}
-                  className={`rounded-full px-5 py-2 text-sm font-medium transition ${
-                    type === 'income'
-                      ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
-                      : 'text-[rgb(var(--muted))] hover:text-green-600'
-                  }`}
-                >Ingreso</button>
-                <button
-                  type="button"
-                  onClick={() => setType('expense')}
-                  className={`rounded-full px-5 py-2 text-sm font-medium transition ${
-                    type === 'expense'
-                      ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
-                      : 'text-[rgb(var(--muted))] hover:text-red-600'
-                  }`}
-                >Gasto</button>
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div className="inline-flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
+                  <button
+                    type="button"
+                    onClick={() => setType('income')}
+                    className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                      type === 'income'
+                        ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
+                        : 'text-[rgb(var(--muted))] hover:text-green-600'
+                    }`}
+                  >Ingreso</button>
+                  <button
+                    type="button"
+                    onClick={() => setType('expense')}
+                    className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                      type === 'expense'
+                        ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
+                        : 'text-[rgb(var(--muted))] hover:text-red-600'
+                    }`}
+                  >Gasto</button>
+                </div>
+                <div className="inline-flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
+                  <button
+                    type="button"
+                    onClick={() => setCurrency('COP')}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      currency === 'COP'
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                        : 'text-[rgb(var(--muted))] hover:text-blue-600'
+                    }`}
+                  >COP</button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrency('USD')}
+                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                      currency === 'USD'
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                        : 'text-[rgb(var(--muted))] hover:text-blue-600'
+                    }`}
+                  >USD</button>
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-[rgb(var(--muted))]">Moneda</label>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value as Currency)}
-                  className="input"
-                >
-                  <option value="COP">COP - Peso colombiano</option>
-                  <option value="USD">USD - Dólar</option>
-                  <option value="EUR">EUR - Euro</option>
-                </select>
-              </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-[rgb(var(--muted))]">Vertical</label>
                 <select
