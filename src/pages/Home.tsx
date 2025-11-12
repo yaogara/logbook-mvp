@@ -216,12 +216,12 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="inline-flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
+              <div className="w-full md:w-2/3 lg:w-1/2 flex flex-col sm:flex-row gap-4">
+                <div className="flex-1 flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
                   <button
                     type="button"
                     onClick={() => setType('income')}
-                    className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                    className={`flex-1 rounded-full px-5 py-3 text-sm font-medium transition ${
                       type === 'income'
                         ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
                         : 'text-[rgb(var(--muted))] hover:text-green-600'
@@ -230,18 +230,18 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setType('expense')}
-                    className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                    className={`flex-1 rounded-full px-5 py-3 text-sm font-medium transition ${
                       type === 'expense'
                         ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
                         : 'text-[rgb(var(--muted))] hover:text-red-600'
                     }`}
                   >Gasto</button>
                 </div>
-                <div className="inline-flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
+                <div className="flex-1 flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
                   <button
                     type="button"
                     onClick={() => setCurrency('COP')}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    className={`flex-1 rounded-full px-4 py-3 text-sm font-medium transition ${
                       currency === 'COP'
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                         : 'text-[rgb(var(--muted))] hover:text-blue-600'
@@ -250,7 +250,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setCurrency('USD')}
-                    className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                    className={`flex-1 rounded-full px-4 py-3 text-sm font-medium transition ${
                       currency === 'USD'
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                         : 'text-[rgb(var(--muted))] hover:text-blue-600'
@@ -329,8 +329,12 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex justify-end">
-              <button disabled={saving} type="submit" className="btn-primary disabled:cursor-not-allowed disabled:opacity-60 px-6">
+            <div className="flex justify-center">
+              <button
+                disabled={saving}
+                type="submit"
+                className="btn-primary w-full md:w-2/3 lg:w-1/2 py-3 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              >
                 {saving ? 'Guardando…' : 'Guardar movimiento'}
               </button>
             </div>
