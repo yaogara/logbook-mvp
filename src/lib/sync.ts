@@ -178,6 +178,15 @@ export async function pullSince() {
           }
         });
         await tx;
+
+        // Remove local records that no longer exist on the server
+        const localRows = await (db.table(table) as any).toArray()
+        for (const localRow of localRows) {
+          const existsOnServer = (data as any[]).some(r => r.id === localRow.id)
+          if (!existsOnServer) {
+            await (db.table(table) as any).delete(localRow.id)
+          }
+        }
       }
     } catch (err) {
       // Continue to next table; pull is best-effort
