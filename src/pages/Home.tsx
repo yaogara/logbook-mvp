@@ -281,11 +281,13 @@ export default function Home() {
                     className="input w-full"
                   >
                     <option value="">Tipo</option>
-                    {filteredCategories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} {c.description ? `- ${c.description}` : ''}
-                      </option>
-                    ))}
+                    {filteredCategories
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.description ? `- ${c.description}` : ''}
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>

@@ -456,11 +456,13 @@ export default function History() {
                   className="input"
                 >
                   <option value="">Seleccioná una opción</option>
-                  {filteredCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {filteredCategories
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 
