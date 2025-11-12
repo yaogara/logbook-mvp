@@ -9,9 +9,6 @@
       }
     }
   ],
-  "redirects": [
-    { "source": "/:path*", "destination": "/index.html", "permanent": false }
-  ],
   "headers": [
     {
       "source": "/manifest.webmanifest",
