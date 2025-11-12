@@ -177,8 +177,8 @@ export default function Home() {
 
   const registrarCardClasses =
     type === 'income'
-      ? 'bg-green-500/5 border-green-500/20 hover:bg-green-500/5 hover:border-green-500/20'
-      : 'bg-red-500/5 border-red-500/20 hover:bg-red-500/5 hover:border-red-500/20'
+      ? 'bg-emerald-500/15 border-emerald-500/40 hover:bg-emerald-500/15 hover:border-emerald-500/40'
+      : 'bg-rose-500/15 border-rose-500/40 hover:bg-rose-500/15 hover:border-rose-500/40'
 
   return (
     <div>
@@ -188,10 +188,6 @@ export default function Home() {
           className={`card p-6 sm:p-8 transition-colors duration-300 ${registrarCardClasses}`}
         >
           <div className="flex items-baseline justify-between gap-4 mb-6">
-            <div>
-              <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Registrar movimiento</h2>
-              <p className="text-sm text-[rgb(var(--muted))]">Capturá ingresos y gastos en segundos.</p>
-            </div>
             <span
               className={`hidden md:inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition ${
                 online ? 'bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
@@ -203,7 +199,7 @@ export default function Home() {
           </div>
           <form onSubmit={saveTxn} className="space-y-8">
             <div className="flex flex-col items-center gap-3 text-center">
-              <label className="text-sm font-medium uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Monto</label>
+              <label className="text-sm font-medium uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Registrar movimiento</label>
               <input
                 type="number"
                 step="0.01"
@@ -216,15 +212,15 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col items-center gap-4">
-              <div className="w-full md:w-2/3 lg:w-1/2 flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
+              <div className="w-full md:w-2/3 lg:w-1/2 grid grid-cols-2 gap-4">
+                <div className="flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
                   <button
                     type="button"
                     onClick={() => setType('income')}
                     className={`flex-1 rounded-full px-5 py-3 text-sm font-medium transition ${
                       type === 'income'
-                        ? 'bg-green-600 text-white shadow-lg shadow-green-600/20'
-                        : 'text-[rgb(var(--muted))] hover:text-green-600'
+                        ? 'bg-emerald-500/90 text-white shadow-lg shadow-emerald-500/30'
+                        : 'text-[rgb(var(--muted))] hover:text-emerald-500'
                     }`}
                   >Ingreso</button>
                   <button
@@ -232,12 +228,12 @@ export default function Home() {
                     onClick={() => setType('expense')}
                     className={`flex-1 rounded-full px-5 py-3 text-sm font-medium transition ${
                       type === 'expense'
-                        ? 'bg-red-600 text-white shadow-lg shadow-red-600/20'
-                        : 'text-[rgb(var(--muted))] hover:text-red-600'
+                        ? 'bg-rose-500/90 text-white shadow-lg shadow-rose-500/30'
+                        : 'text-[rgb(var(--muted))] hover:text-rose-500'
                     }`}
                   >Gasto</button>
                 </div>
-                <div className="flex-1 flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
+                <div className="flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
                   <button
                     type="button"
                     onClick={() => setCurrency('COP')}
