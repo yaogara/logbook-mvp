@@ -265,11 +265,13 @@ export default function Home() {
                     className="input w-full"
                   >
                     <option value="">Area</option>
-                    {verticals.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.name} {v.description ? `- ${v.description}` : ''}
-                      </option>
-                    ))}
+                    {verticals
+                      .sort((a, b) => a.name.localeCompare(b.name))
+                      .map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {v.name} {v.description ? `- ${v.description}` : ''}
+                        </option>
+                      ))}
                   </select>
                 </div>
                 <div>

@@ -437,11 +437,13 @@ export default function History() {
                   className="input"
                 >
                   <option value="">Seleccioná una opción</option>
-                  {verticals.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))}
+                  {verticals
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 
