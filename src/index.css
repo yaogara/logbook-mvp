@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Support for iOS + Android edge-to-edge */
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Ensure full viewport height and width */
 html, body, #root {
   margin: 0;
@@ -9,6 +15,9 @@ html, body, #root {
   width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+  padding-top: var(--safe-area-inset-top);
+  padding-bottom: var(--safe-area-inset-bottom);
+  background-color: #2c0a71; /* Match your app's theme color */
 }
 
 /* For iOS PWA fullscreen */
