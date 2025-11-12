@@ -264,7 +264,7 @@ export default function Home() {
                     onChange={(e) => setVerticalId(e.target.value)}
                     className="input w-full"
                   >
-                    <option value="">Vertical</option>
+                    <option value="">Area</option>
                     {verticals.map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.name} {v.description ? `- ${v.description}` : ''}
@@ -278,7 +278,7 @@ export default function Home() {
                     onChange={(e) => setCategoryId(e.target.value)}
                     className="input w-full"
                   >
-                    <option value="">Categoría</option>
+                    <option value="">Tipo</option>
                     {filteredCategories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name} {c.description ? `- ${c.description}` : ''}
