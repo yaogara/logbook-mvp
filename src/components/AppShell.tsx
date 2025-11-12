@@ -31,12 +31,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">
+      <main className="mx-auto max-w-5xl px-4 py-6 pb-24 sm:pb-6">
         {children}
       </main>
 
       {/* Bottom nav for mobile */}
-      <nav className="sm:hidden fixed bottom-3 inset-x-3 z-20 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--card))]/90 backdrop-blur shadow-lg">
+      <nav className="sm:hidden fixed bottom-3 inset-x-3 z-50 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--card))]/90 backdrop-blur shadow-lg">
         <div className="flex items-center justify-around px-2 py-2">
           <Link to="/" className={`px-4 py-2 rounded-full text-sm font-medium transition ${isHome ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]' : 'text-[rgb(var(--muted))]'}`}>Home</Link>
           <Link to="/history" className={`px-4 py-2 rounded-full text-sm font-medium transition ${isHistory ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]' : 'text-[rgb(var(--muted))]'}`}>Historial</Link>
