@@ -151,7 +151,6 @@ export async function pullSince() {
         const tx = db.transaction('rw', db.table(table), async () => {
           for (const row of data as any[]) {
             let normalizedRow = { ...row }
-            // Map server occurred_on back to local date/time for txns
             if (table === 'txns') {
               if (normalizedRow.occurred_on) {
                 const dt = new Date(normalizedRow.occurred_on)
@@ -165,7 +164,6 @@ export async function pullSince() {
                   normalizedRow.time = `${hours}:${minutes}`
                 }
               }
-
               normalizedRow.type = normalizeTxnType(normalizedRow.type)
               const rawAmount =
                 typeof normalizedRow.amount === 'number'
@@ -179,14 +177,18 @@ export async function pullSince() {
         });
         await tx;
 
-        // Remove local records that no longer exist on the server
-        const localRows = await (db.table(table) as any).toArray()
+        // 🧹 Remove local records not on server
+        const localRows = await (db.table(table) as any).toArray();
+        const serverIds = new Set((data as any[]).map(r => r.id));
         for (const localRow of localRows) {
-          const existsOnServer = (data as any[]).some(r => r.id === localRow.id)
-          if (!existsOnServer) {
-            await (db.table(table) as any).delete(localRow.id)
+          if (!serverIds.has(localRow.id)) {
+            await (db.table(table) as any).delete(localRow.id);
+            console.log(`🗑 Removed ${table} row not found on server:`, localRow.id);
           }
         }
+      } else {
+        console.log(`⚠️ Server returned no data for ${table}. Clearing local cache.`);
+        await db.table(table).clear();
       }
     } catch (err) {
       // Continue to next table; pull is best-effort
