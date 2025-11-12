@@ -155,8 +155,15 @@ export async function pullSince() {
             if (table === 'txns') {
               if (normalizedRow.occurred_on) {
                 const dt = new Date(normalizedRow.occurred_on)
-                normalizedRow.date = dt.toISOString().slice(0, 10)  // YYYY-MM-DD (UTC)
-                normalizedRow.time = dt.toISOString().slice(11, 16) // HH:MM (UTC)
+                if (!Number.isNaN(dt.getTime())) {
+                  const year = dt.getFullYear()
+                  const month = String(dt.getMonth() + 1).padStart(2, '0')
+                  const day = String(dt.getDate()).padStart(2, '0')
+                  const hours = String(dt.getHours()).padStart(2, '0')
+                  const minutes = String(dt.getMinutes()).padStart(2, '0')
+                  normalizedRow.date = `${year}-${month}-${day}`
+                  normalizedRow.time = `${hours}:${minutes}`
+                }
               }
 
               normalizedRow.type = normalizeTxnType(normalizedRow.type)
