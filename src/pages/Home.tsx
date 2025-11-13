@@ -187,13 +187,23 @@ export default function Home() {
         <section
           className={`card p-6 sm:p-8 transition-colors duration-300 ${registrarCardClasses}`}
         >
-          <div className="flex items-baseline justify-between gap-4 mb-6">
+          <div className="hidden md:flex items-baseline justify-between gap-4 mb-6">
             <span
-              className={`hidden md:inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition ${
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition ${
                 online ? 'bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
               }`}
             >
               <span className={`block h-2 w-2 rounded-full ${online ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--muted))]'}`} />
+              {online ? 'Sincronizado' : 'Sin conexión'}
+            </span>
+          </div>
+          <div className="md:hidden mb-4 flex justify-end">
+            <span
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-medium transition ${
+                online ? 'bg-[rgb(var(--primary))]/15 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
+              }`}
+            >
+              <span className={`block h-1.5 w-1.5 rounded-full ${online ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--muted))]'}`} />
               {online ? 'Sincronizado' : 'Sin conexión'}
             </span>
           </div>
