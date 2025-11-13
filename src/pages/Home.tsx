@@ -5,12 +5,13 @@ import type { Txn, TxnType, Currency } from '../types'
 import { fullSync, fetchContributors } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
 import { normalizeTxn } from '../lib/transactions'
+import useOnlineStatus from '../hooks/useOnlineStatus'
 
 // const supabase = getSupabase()
 
 export default function Home() {
   const { show } = useToast()
-  const [online, setOnline] = useState<boolean>(navigator.onLine)
+  const online = useOnlineStatus()
   const [recent, setRecent] = useState<Txn[]>([])
   const [verticals, setVerticals] = useState<{ id: string; name: string; description?: string }[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string; description?: string; vertical_id?: string | null }[]>([])
@@ -42,16 +43,6 @@ export default function Home() {
     const category = categories.find((c) => c.id === categoryIdValue)
     return category ? /settlement/i.test(category.name ?? '') : false
   }
-
-  useEffect(() => {
-    function updateStatus() { setOnline(navigator.onLine) }
-    window.addEventListener('online', updateStatus)
-    window.addEventListener('offline', updateStatus)
-    return () => {
-      window.removeEventListener('online', updateStatus)
-      window.removeEventListener('offline', updateStatus)
-    }
-  }, [])
 
   useEffect(() => {
     loadRecent()
@@ -86,7 +77,7 @@ export default function Home() {
   }
 
   async function forceSync() {
-    if (!navigator.onLine) {
+    if (!online) {
       show({ title: 'Sin conexión', variant: 'error' })
       return
     }
@@ -135,7 +126,7 @@ export default function Home() {
       await queueInsert('txns', txn as any)
       resetForm()
       await loadRecent()
-      if (navigator.onLine) await fullSync()
+      if (online) await fullSync()
       setShowSuccess(true)
     } finally {
       setSaving(false)
@@ -157,7 +148,7 @@ export default function Home() {
     } as any)
     setEditing(null)
     await loadRecent()
-    if (navigator.onLine) await fullSync()
+    if (online) await fullSync()
   }
 
   async function applyDelete() {
@@ -166,7 +157,7 @@ export default function Home() {
       await queueDelete('txns', deleting.id)
       setDeleting(null)
       await loadRecent()
-      if (navigator.onLine) await fullSync()
+      if (online) await fullSync()
       show({ variant: 'success', title: 'Movimiento eliminado' })
     } catch (err: any) {
       show({ variant: 'error', title: 'No se pudo eliminar', description: String(err?.message || err) })
@@ -194,16 +185,6 @@ export default function Home() {
               }`}
             >
               <span className={`block h-2 w-2 rounded-full ${online ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--muted))]'}`} />
-              {online ? 'Sincronizado' : 'Sin conexión'}
-            </span>
-          </div>
-          <div className="md:hidden mb-4 flex justify-end">
-            <span
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-medium transition ${
-                online ? 'bg-[rgb(var(--primary))]/15 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
-              }`}
-            >
-              <span className={`block h-1.5 w-1.5 rounded-full ${online ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--muted))]'}`} />
               {online ? 'Sincronizado' : 'Sin conexión'}
             </span>
           </div>

@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom'
 import UserBadge from './UserBadge'
 import LogoutButton from './LogoutButton'
 import ThemeToggle from './ThemeToggle'
+import useOnlineStatus from '../hooks/useOnlineStatus'
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const loc = useLocation()
+  const online = useOnlineStatus()
   const isHome = loc.pathname === '/'
   const isDash = loc.pathname.startsWith('/dashboard')
   const isHistory = loc.pathname.startsWith('/history')
@@ -76,6 +78,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <span
+              className={`sm:hidden inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
+                online ? 'bg-[rgb(var(--primary))]/15 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
+              }`}
+              title={online ? 'Sincronizado' : 'Sin conexión'}
+            >
+              <span
+                className={`block h-2 w-2 rounded-full ${
+                  online ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--muted))]'
+                }`}
+              />
+              {online ? 'Sincronizado' : 'Sin conexión'}
+            </span>
             <ThemeToggle />
             <UserBadge />
             <LogoutButton />
