@@ -9,13 +9,13 @@
 }
 
 /* Fullscreen, stable PWA layout */
-html, body, #root {
+html, body {
   margin: 0;
   padding: 0;
-  width: 100%;
-  min-height: 100dvh;          /* ✔ correct for Android PWAs */
+  height: auto;
+  min-height: 100vh;
   overflow-x: hidden;
-  background: rgb(var(--bg));  /* ✔ theme-based */
+  background: rgb(var(--bg));
 }
 
 /* iOS fullscreen behavior */
@@ -31,7 +31,9 @@ html, body, #root {
 #root {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;  /* ✔ ensures full-height container */
+  width: 100%;
+  height: auto;
+  overflow: visible;
   padding-bottom: var(--safe-bottom);
 }
 
