@@ -14,10 +14,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
   return (
     <div
       className="flex flex-col min-h-[100dvh] w-full bg-gradient-to-br from-[rgb(var(--bg-gradient-from))] to-[rgb(var(--bg-gradient-to))] text-[rgb(var(--fg))]"
-      style={{
-        paddingTop: 'env(safe-area-inset-top)',
-        paddingBottom: 'env(safe-area-inset-bottom)',
-      }}
     >
       {/* HEADER */}
       <header className="sticky top-0 z-20 bg-[rgb(var(--card))]/80 backdrop-blur border-b border-[rgb(var(--border))] shadow-sm">
