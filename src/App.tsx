@@ -11,8 +11,8 @@ import './index.css'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Loader from './components/Loader'
 import AppShell from './components/AppShell'
-import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { ToastProvider } from './components/ToastProvider'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -22,13 +22,11 @@ export default function App() {
     installConnectivitySync()
     const sb = getSupabase()
 
-    // Wait for session AND auth state
     const initAuth = async () => {
       try {
         const { data, error } = await sb.auth.getSession()
         if (error) {
           console.warn('⚠️ Session initialization error:', error.message)
-          // Continue with no auth if session fetch fails
           setAuthed(false)
         } else {
           setAuthed(!!data.session)
@@ -45,9 +43,11 @@ export default function App() {
 
     if (navigator.onLine) void fullSync()
 
-    const { data: sub } = sb.auth.onAuthStateChange((_event: AuthChangeEvent, session: Session | null) => {
-      setAuthed(!!session)
-    })
+    const { data: sub } = sb.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        setAuthed(!!session)
+      }
+    )
 
     return () => sub.subscription.unsubscribe()
   }, [])
@@ -62,56 +62,63 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <Routes>
-        <Route path="/login" element={<Auth />} />
+      {/* ⬇️ AppShell wraps the entire app — fixes PWA safe-area + layout */}
+      <AppShell>
 
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute authed={authed}>
-              <AppShell>
+        <Routes>
+          {/* Public Route */}
+          <Route path="/login" element={<Auth />} />
+
+          {/* Private Routes */}
+          <Route
+            path="/"
+            element={
+              <Protected authed={authed}>
                 <Home />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute authed={authed}>
-              <AppShell>
+              </Protected>
+            }
+          />
+
+          <Route
+            path="/dashboard"
+            element={
+              <Protected authed={authed}>
                 <Dashboard />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/history"
-          element={
-            <ProtectedRoute authed={authed}>
-              <AppShell>
+              </Protected>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <Protected authed={authed}>
                 <History />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/contributors"
-          element={
-            <ProtectedRoute authed={authed}>
-              <AppShell>
+              </Protected>
+            }
+          />
+
+          <Route
+            path="/contributors"
+            element={
+              <Protected authed={authed}>
                 <Contributors />
-              </AppShell>
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+              </Protected>
+            }
+          />
+
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+
+      </AppShell>
     </ToastProvider>
   )
 }
 
-function ProtectedRoute({ authed, children }: { authed: boolean; children: ReactNode }) {
+/* ------------------------
+      Protected Wrapper
+------------------------- */
+function Protected({ authed, children }: { authed: boolean; children: ReactNode }) {
   if (!authed) return <Navigate to="/login" replace />
   return <>{children}</>
 }
