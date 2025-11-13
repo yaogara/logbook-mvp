@@ -18,7 +18,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       className="flex flex-col min-h-[100dvh] w-full bg-gradient-to-br from-[rgb(var(--bg-gradient-from))] to-[rgb(var(--bg-gradient-to))] text-[rgb(var(--fg))]"
     >
       {/* HEADER */}
-      <header className="sticky top-0 z-20 bg-[rgb(var(--card))]/80 backdrop-blur border-b border-[rgb(var(--border))] shadow-sm">
+      <header className="fixed top-0 w-full z-20 bg-[rgb(var(--card))]/80 backdrop-blur border-b border-[rgb(var(--border))] shadow-sm">
         <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="text-base font-semibold tracking-tight text-[rgb(var(--fg))]">
@@ -96,7 +96,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-6 pb-24 sm:pb-6">
+      <main className="pt-20 flex-1 mx-auto w-full max-w-5xl px-4 py-6 pb-24 sm:pb-6">
         {children}
       </main>
 
