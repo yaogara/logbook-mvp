@@ -19,13 +19,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
     >
-      {/* Header */}
+      {/* HEADER */}
       <header className="sticky top-0 z-20 bg-[rgb(var(--card))]/80 backdrop-blur border-b border-[rgb(var(--border))] shadow-sm">
         <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="text-base font-semibold tracking-tight text-[rgb(var(--fg))]">
               Yaogará
             </Link>
+
+            {/* Desktop Nav */}
             <nav className="hidden sm:flex items-center gap-1">
               <Link
                 to="/"
@@ -37,6 +39,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               >
                 Home
               </Link>
+
               <Link
                 to="/history"
                 className={`px-3 py-1.5 rounded-full text-sm transition ${
@@ -47,6 +50,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               >
                 Historial
               </Link>
+
               <Link
                 to="/dashboard"
                 className={`px-3 py-1.5 rounded-full text-sm transition ${
@@ -57,6 +61,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               >
                 Dashboard
               </Link>
+
               <Link
                 to="/contributors"
                 className={`px-3 py-1.5 rounded-full text-sm transition ${
@@ -69,6 +74,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </Link>
             </nav>
           </div>
+
+          {/* Right side */}
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <UserBadge />
@@ -77,12 +84,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      {/* Main content */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto mx-auto w-full max-w-5xl px-4 py-6 pb-24 sm:pb-6">
         {children}
       </main>
 
-      {/* Bottom nav (mobile only) */}
+      {/* MOBILE NAV */}
       <nav
         className="sm:hidden fixed inset-x-3 bottom-3 z-50 rounded-full border border-[rgb(var(--border))] bg-[rgb(var(--card))]/95 backdrop-blur-md shadow-lg"
         style={{
@@ -100,6 +107,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             Home
           </Link>
+
           <Link
             to="/history"
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
@@ -110,8 +118,30 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             Historial
           </Link>
+
           <Link
             to="/dashboard"
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
               isDash
-                ? 'bg-[rgb(var(--card
+                ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                : 'text-[rgb(var(--muted))]'
+            }`}
+          >
+            Dashboard
+          </Link>
+
+          <Link
+            to="/contributors"
+            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+              isContributors
+                ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                : 'text-[rgb(var(--muted))]'
+            }`}
+          >
+            Balances
+          </Link>
+        </div>
+      </nav>
+    </div>
+  )
+}
