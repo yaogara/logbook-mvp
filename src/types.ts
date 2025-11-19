@@ -14,7 +14,7 @@ export interface SettlementPayment {
   created_at: string
 }
 
-export type Txn = {
+export type LocalTxn = {
   id: string
   amount: number
   type: TxnType
@@ -33,19 +33,25 @@ export type Txn = {
   occurred_on?: string
 }
 
-export interface ServerTxn {
+export interface Txn {
   id: string
   user_id: string
   client_id: string
   amount: number
-  type: 'Ingreso' | 'Gasto'
+  type: 'Ingreso' | 'Gasto' | 'Settled'
   occurred_on: string
-  vertical_id?: string | null
-  category_id?: string | null
+  vertical_id: string | null
+  category_id: string | null
   description?: string | null
   contributor_id?: string | null
-  settled?: boolean
-  updated_at: string
   deleted_at?: string | null
-  currency: string
+}
+
+export interface Contributor {
+  id: string
+  auth_user_id?: string | null
+  email: string
+  name?: string | null
+  created_at: string
+  updated_at: string
 }

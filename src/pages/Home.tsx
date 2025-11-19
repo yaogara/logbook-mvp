@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { OfflineBanner } from '../components/OfflineBanner'
-import { db, queueDelete, queueInsert, queueUpdate } from '../lib/db'
-import type { Txn, TxnType, Currency } from '../types'
+import { db, queueDelete, queueInsert, queueUpdate, getPreferredContributorId } from '../lib/db'
+import type { LocalTxn, TxnType, Currency, Contributor } from '../types'
 import { fullSync, fetchContributors } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
 import { normalizeTxn } from '../lib/transactions'
@@ -12,14 +12,14 @@ import useOnlineStatus from '../hooks/useOnlineStatus'
 export default function Home() {
   const { show } = useToast()
   const online = useOnlineStatus()
-  const [recent, setRecent] = useState<Txn[]>([])
+  const [recent, setRecent] = useState<LocalTxn[]>([])
   const [verticals, setVerticals] = useState<{ id: string; name: string; description?: string }[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string; description?: string; vertical_id?: string | null }[]>([])
-  const [contributors, setContributors] = useState<{ id: string; email: string; name?: string }[]>([])
+  const [contributors, setContributors] = useState<Contributor[]>([])
   const [saving, setSaving] = useState(false)
   const [syncing, setSyncing] = useState(false)
-  const [editing, setEditing] = useState<Txn | null>(null)
-  const [deleting, setDeleting] = useState<Txn | null>(null)
+  const [editing, setEditing] = useState<LocalTxn | null>(null)
+  const [deleting, setDeleting] = useState<LocalTxn | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
 
   const [amount, setAmount] = useState<string>('')
@@ -27,7 +27,8 @@ export default function Home() {
   const [currency, setCurrency] = useState<Currency>('COP')
   const [verticalId, setVerticalId] = useState<string>('')
   const [categoryId, setCategoryId] = useState<string>('')
-  const [contributorId, setContributorId] = useState<string>('')
+  const [contributorId, setContributorId] = useState<string | null>(null)
+  const [defaultContributorId, setDefaultContributorId] = useState<string | null>(null)
   const [description, setDescription] = useState<string>('')
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0])
 
@@ -64,6 +65,17 @@ export default function Home() {
     setVerticals(v)
     setCategories(c)
     setContributors(contrib)
+    const preferredId = await getPreferredContributorId()
+    const resolvedPreferred =
+      (preferredId && contrib.some((item) => item.id === preferredId)) ? preferredId : null
+    setDefaultContributorId(resolvedPreferred)
+    setContributorId((prev) => {
+      const stillExists = prev ? contrib.some((item) => item.id === prev) : false
+      if (prev && !stillExists) {
+        return resolvedPreferred ?? null
+      }
+      return prev ?? resolvedPreferred ?? null
+    })
   }
 
   async function loadRecent() {
@@ -99,7 +111,7 @@ export default function Home() {
     setCurrency('COP')
     setVerticalId('')
     setCategoryId('')
-    setContributorId('')
+    setContributorId(defaultContributorId ?? null)
     setDescription('')
     setDate(new Date().toISOString().split('T')[0])
   }
@@ -110,7 +122,7 @@ export default function Home() {
     setSaving(true)
     try {
       const isSettlement = detectSettlement(description, categoryId || null)
-      const txn: Omit<Txn, 'id' | 'created_at' | 'updated_at'> = {
+      const txn: Omit<LocalTxn, 'id' | 'created_at' | 'updated_at'> = {
         amount: Number(amount),
         type,
         currency,
@@ -118,7 +130,7 @@ export default function Home() {
         time: new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
         vertical_id: verticalId || null,
         category_id: categoryId || null,
-        contributor_id: contributorId || null,
+        contributor_id: contributorId ?? null,
         description: description || undefined,
         deleted: false,
         is_settlement: isSettlement,
@@ -283,30 +295,29 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="input w-full"
-                    max={new Date().toISOString().split('T')[0]}
-                  />
-                </div>
-                <div>
-                  <select
-                    value={contributorId}
-                    onChange={(e) => setContributorId(e.target.value)}
-                    className="input w-full"
-                  >
-                    <option value="">Colaborador</option>
-                    {contributors.map((contrib) => (
-                      <option key={contrib.id} value={contrib.id}>
-                        {contrib.name || contrib.email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div>
+                <select
+                  value={contributorId ?? ''}
+                  onChange={(e) => setContributorId(e.target.value || null)}
+                  className="input w-full"
+                >
+                  <option value="">Sin colaborador</option>
+                  {contributors.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name || c.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="input w-full"
+                  max={new Date().toISOString().split('T')[0]}
+                />
               </div>
 
               <div>
@@ -447,7 +458,7 @@ export default function Home() {
                 onChange={(e) => setEditing({ ...editing, contributor_id: e.target.value || null })}
                 className="input"
               >
-                <option value="">Colaborador (opcional)</option>
+                <option value="">Sin colaborador</option>
                 {contributors.map((contrib) => (
                   <option key={contrib.id} value={contrib.id}>{contrib.name || contrib.email}</option>
                 ))}

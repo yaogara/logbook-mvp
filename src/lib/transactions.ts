@@ -1,4 +1,4 @@
-import type { Txn, TxnType } from '../types'
+import type { LocalTxn, TxnType } from '../types'
 
 export function normalizeTxnType(value: unknown): TxnType {
   const normalized = String(value ?? '')
@@ -11,7 +11,7 @@ export function normalizeTxnType(value: unknown): TxnType {
   return 'expense'
 }
 
-export function normalizeTxn<T extends Partial<Txn>>(txn: T): T & { type: TxnType; amount: number; is_settlement: boolean; settled: boolean } {
+export function normalizeTxn<T extends Partial<LocalTxn>>(txn: T): T & { type: TxnType; amount: number; is_settlement: boolean; settled: boolean } {
   const type = normalizeTxnType(txn.type)
   const rawAmount = typeof txn.amount === 'number' ? txn.amount : Number(txn.amount ?? 0)
   const amount = Number.isFinite(rawAmount) ? Math.abs(rawAmount) : 0

@@ -1,11 +1,34 @@
 import { getSupabase, safeQuery } from './supabase'
-import { db, setLastSync } from './db'
+import { db, setLastSync, setPreferredContributorId } from './db'
+import type { Contributor } from './db'
 import { normalizeTxnType } from './transactions'
 
-const OUTBOX_TABLES = ['txns', 'verticals', 'categories', 'contributors'] as const
-const SYNC_TABLES = ['verticals', 'categories', 'contributors', 'txns', 'settlement_payments'] as const
+const TABLES = ['txns', 'contributors', 'categories', 'verticals'] as const
+const OUTBOX_TABLES = [...TABLES, 'settlement_payments'] as const
+const SYNC_TABLES = [...TABLES, 'settlement_payments'] as const
 
 type TableName = typeof OUTBOX_TABLES[number]
+
+async function syncPreferredContributor(contributors: Contributor[], sessionUserId?: string | null) {
+  if (!contributors.length) return
+  let authUserId = sessionUserId ?? null
+  if (!authUserId) {
+    try {
+      const supabase = getSupabase()
+      const { data: userRes } = await supabase.auth.getUser()
+      authUserId = userRes?.user?.id ?? null
+    } catch {
+      authUserId = null
+    }
+  }
+  if (!authUserId) return
+  const match = contributors.find(
+    (contrib) => contrib.auth_user_id && contrib.auth_user_id === authUserId,
+  )
+  if (match) {
+    await setPreferredContributorId(match.id)
+  }
+}
 
 export async function pushOutbox() {
   if (!navigator.onLine) {
@@ -50,6 +73,19 @@ export async function pushOutbox() {
             )
             if (error) throw error
           }
+        } else if (table === 'settlement_payments') {
+          const payload = {
+            id: row.id,
+            txn_id: row.txn_id,
+            amount: Number(row.amount ?? 0),
+            occurred_on: row.occurred_on ?? new Date().toISOString(),
+            created_at: row.created_at ?? new Date().toISOString(),
+          }
+          const { error } = await safeQuery(
+            () => supabase.from('settlement_payments').insert(payload).then((r: any) => r),
+            'insert settlement_payments',
+          )
+          if (error) throw error
         } else {
           // Whitelist columns to avoid schema mismatches between client cache and server
           let payload: any
@@ -61,7 +97,10 @@ export async function pushOutbox() {
             const vertical_id = row.vertical_id ?? null
             const category_id = row.category_id ?? null
             // Convert empty strings to null for contributor_id
-            const contributor_id = row.contributor_id && row.contributor_id.trim() !== '' ? row.contributor_id : null
+            const contributor_id =
+              row.contributor_id && row.contributor_id.trim() !== ''
+                ? row.contributor_id
+                : null
             const description = row.description ?? null
             const id = row.id // we generate UUIDs locally; send as id
             const client_id = row.id // also set client_id for traceability
@@ -89,11 +128,7 @@ export async function pushOutbox() {
               category_id,
               description,
               settled,
-            }
-            
-            // Only include contributor_id if it has a valid value
-            if (contributor_id !== null) {
-              payload.contributor_id = contributor_id
+              contributor_id: contributor_id ?? null,
             }
 
             payload.is_settlement = Boolean(row.is_settlement)
@@ -117,7 +152,7 @@ export async function pushOutbox() {
               Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
             )
           } else if (table === 'contributors') {
-            const allowed = ['id', 'email', 'name'] as const
+            const allowed = ['id', 'email', 'name', 'auth_user_id'] as const
             payload = Object.fromEntries(
               Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
             )
@@ -158,10 +193,16 @@ export async function pullSince() {
       const { data, error } = await safeQuery<any[]>(() => q.then((r: any) => r), `pull ${table}`)
       if (error) throw error
       if (data && data.length) {
+        const contributorsForPreference: Contributor[] = []
         const tx = db.transaction('rw', (db as any)[table], async () => {
           for (const row of data as any[]) {
             let normalizedRow = { ...row }
             if (table === 'txns') {
+              const rawType =
+                typeof normalizedRow.type === 'string'
+                  ? normalizedRow.type.trim().toLowerCase()
+                  : ''
+              const isSettledType = rawType === 'settled'
               if (normalizedRow.occurred_on) {
                 const dt = new Date(normalizedRow.occurred_on)
                 if (!Number.isNaN(dt.getTime())) {
@@ -174,7 +215,15 @@ export async function pullSince() {
                   normalizedRow.time = `${hours}:${minutes}`
                 }
               }
-              normalizedRow.type = normalizeTxnType(normalizedRow.type)
+              if (isSettledType) {
+                normalizedRow.is_settlement = true
+                const directionTag =
+                  typeof normalizedRow.description === 'string' &&
+                  normalizedRow.description.includes('direction=in')
+                normalizedRow.type = directionTag ? 'income' : 'expense'
+              } else {
+                normalizedRow.type = normalizeTxnType(normalizedRow.type)
+              }
               const rawAmount =
                 typeof normalizedRow.amount === 'number'
                   ? normalizedRow.amount
@@ -189,10 +238,23 @@ export async function pullSince() {
                 : Number(normalizedRow.amount ?? 0)
               normalizedRow.amount = Number.isFinite(numericAmount) ? numericAmount : 0
             }
+            if (table === 'contributors') {
+              normalizedRow.auth_user_id = normalizedRow.auth_user_id ?? null
+              normalizedRow.name = normalizedRow.name ?? null
+              const fallbackTimestamp = new Date().toISOString()
+              normalizedRow.created_at =
+                normalizedRow.created_at ?? normalizedRow.updated_at ?? fallbackTimestamp
+              normalizedRow.updated_at =
+                normalizedRow.updated_at ?? normalizedRow.created_at ?? fallbackTimestamp
+              contributorsForPreference.push(normalizedRow as Contributor)
+            }
             await (db.table(table) as any).put(normalizedRow)
           }
         })
         await tx
+        if (table === 'contributors' && contributorsForPreference.length) {
+          await syncPreferredContributor(contributorsForPreference)
+        }
 
         // 🧹 Remove local records not on server
         const localRows = await (db as any)[table].toArray()
@@ -219,44 +281,67 @@ export async function fullSync() {
   await pullSince()
 }
 
-export async function fetchContributors() {
+export async function fetchContributors(): Promise<Contributor[]> {
+  const supabase = getSupabase()
+  let sessionUserId: string | null = null
+
+  try {
+    const { data: userRes } = await supabase.auth.getUser()
+    sessionUserId = userRes?.user?.id ?? null
+  } catch (err) {
+    console.warn('⚠️ Failed to resolve session for contributors:', err)
+  }
+
+  const fromCache = async (): Promise<Contributor[]> => {
+    const cached = await db.contributors.toArray()
+    await syncPreferredContributor(cached, sessionUserId ?? undefined)
+    return cached
+  }
+
   if (!navigator.onLine) {
     console.warn('⚠️ Offline mode: loading contributors from cache')
-    return await db.contributors.toArray()
+    return fromCache()
   }
-  
-  const supabase = getSupabase()
+
   try {
-    // Fetch from contributors table
     const { data, error } = await safeQuery<any[]>(
-      () => supabase.from('contributors').select('id, email, name').then((r: any) => r),
-      'fetch contributors'
+      () =>
+        supabase
+          .from('contributors')
+          .select('id, email, name, auth_user_id, created_at, updated_at')
+          .then((r: any) => r),
+      'fetch contributors',
     )
-    
+
     if (!error && data && data.length > 0) {
-      // Cache in IndexedDB
-      const contributors = data.map(row => ({
-        id: row.id,
-        email: row.email,
-        name: row.name,
-        updated_at: new Date().toISOString()
-      }))
-      
-      // Store in local DB
+      const contributors: Contributor[] = data.map((row) => {
+        const fallbackTimestamp = new Date().toISOString()
+        const created_at = row.created_at ?? row.updated_at ?? fallbackTimestamp
+        const updated_at = row.updated_at ?? row.created_at ?? fallbackTimestamp
+        return {
+          id: row.id,
+          email: row.email,
+          name: row.name ?? null,
+          auth_user_id: row.auth_user_id ?? null,
+          created_at,
+          updated_at,
+        }
+      })
+
       await db.transaction('rw', db.contributors, async () => {
         for (const contrib of contributors) {
           await db.contributors.put(contrib)
         }
       })
-      
+
+      await syncPreferredContributor(contributors, sessionUserId ?? undefined)
       return contributors
     }
   } catch (err) {
     console.warn('⚠️ Failed to fetch contributors:', err)
   }
-  
-  // Fallback to cached data
-  return await db.contributors.toArray()
+
+  return fromCache()
 }
 
 export function installConnectivitySync() {

@@ -14,7 +14,14 @@ export interface MetaRow { key: string; value: string }
 
 export interface Vertical { id: string; name: string; updated_at: string }
 export interface Category { id: string; vertical_id?: string | null; name: string; updated_at: string }
-export interface Contributor { id: string; email: string; name?: string; updated_at: string }
+export interface Contributor {
+  id: string
+  auth_user_id?: string | null
+  email: string
+  name?: string | null
+  created_at: string
+  updated_at: string
+}
 
 export interface Txn {
   id: string
@@ -49,6 +56,7 @@ export interface LogbookTables {
   verticals: Vertical
   categories: Category
   contributors: Contributor
+  settlement_payments: SettlementPayment
   meta: MetaRow
 }
 
@@ -75,23 +83,46 @@ export class LogbookDB extends Dexie {
       outbox: '++id, ts, table, op',
       verticals: 'id, updated_at',
       categories: 'id, updated_at, vertical_id',
-      contributors: 'id, updated_at',
+      contributors: 'id, email, auth_user_id, updated_at',
       meta: '&key',
     })
-    this.version(3).stores({
-      txns: 'id, updated_at, date, type, contributor_id, settled',
-      outbox: '++id, ts, table, op',
-      verticals: 'id, updated_at',
-      categories: 'id, updated_at, vertical_id',
-      contributors: 'id, updated_at',
-      settlement_payments: 'id, txn_id, occurred_on',
-      meta: '&key',
-    }).upgrade(async (tx) => {
-      await tx.table('txns').toCollection().modify((row: any) => {
-        row.is_settlement = Boolean(row.is_settlement)
-        row.settled = Boolean(row.settled)
+    this.version(3)
+      .stores({
+        txns: 'id, updated_at, date, type, contributor_id, settled',
+        outbox: '++id, ts, table, op',
+        verticals: 'id, updated_at',
+        categories: 'id, updated_at, vertical_id',
+        contributors: 'id, email, auth_user_id, updated_at',
+        settlement_payments: 'id, txn_id, occurred_on',
+        meta: '&key',
       })
-    })
+      .upgrade(async (tx) => {
+        await tx.table('txns').toCollection().modify((row: any) => {
+          row.is_settlement = Boolean(row.is_settlement)
+          row.settled = Boolean(row.settled)
+        })
+      })
+    this.version(4)
+      .stores({
+        txns: 'id, updated_at, date, type, contributor_id, settled',
+        outbox: '++id, ts, table, op',
+        verticals: 'id, updated_at',
+        categories: 'id, updated_at, vertical_id',
+        contributors: 'id, email, auth_user_id, updated_at',
+        settlement_payments: 'id, txn_id, occurred_on',
+        meta: '&key',
+      })
+      .upgrade(async (tx) => {
+        const contributorsTable = tx.table('contributors')
+        await contributorsTable.toCollection().modify((row: any) => {
+          if (typeof row.created_at !== 'string') {
+            row.created_at = row.updated_at ?? new Date().toISOString()
+          }
+          if (!('auth_user_id' in row)) {
+            row.auth_user_id = null
+          }
+        })
+      })
   }
 }
 
@@ -156,4 +187,19 @@ export async function getLastSync(): Promise<string | null> {
 
 export async function setLastSync(iso: string) {
   await db.meta.put({ key: 'last_sync', value: iso })
+}
+
+const PREFERRED_CONTRIBUTOR_KEY = 'preferred_contributor_id'
+
+export async function getPreferredContributorId(): Promise<string | null> {
+  const row = await db.meta.get(PREFERRED_CONTRIBUTOR_KEY)
+  return row?.value ?? null
+}
+
+export async function setPreferredContributorId(id: string | null) {
+  if (!id) {
+    await db.meta.delete(PREFERRED_CONTRIBUTOR_KEY)
+    return
+  }
+  await db.meta.put({ key: PREFERRED_CONTRIBUTOR_KEY, value: id })
 }

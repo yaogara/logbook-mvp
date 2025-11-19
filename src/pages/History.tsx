@@ -1,19 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { db, queueDelete, queueUpdate } from '../lib/db'
-import type { Txn, Currency } from '../types'
+import type { LocalTxn, Currency } from '../types'
 import { fullSync } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
 import { normalizeTxn } from '../lib/transactions'
 
 export default function History() {
   const { show } = useToast()
-  const [transactions, setTransactions] = useState<Txn[]>([])
+  const [transactions, setTransactions] = useState<LocalTxn[]>([])
   const [verticals, setVerticals] = useState<{ id: string; name: string }[]>([])
   const [categories, setCategories] = useState<{ id: string; name: string; vertical_id?: string | null }[]>([])
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState<Txn | null>(null)
-  const [deleting, setDeleting] = useState<Txn | null>(null)
+  const [editing, setEditing] = useState<LocalTxn | null>(null)
+  const [deleting, setDeleting] = useState<LocalTxn | null>(null)
   
   // Filters and search
   const [searchQuery, setSearchQuery] = useState('')
