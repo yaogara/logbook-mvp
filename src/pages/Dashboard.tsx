@@ -3,6 +3,7 @@ import { supabase, safeQuery } from '../lib/supabase'
 import Loader from '../components/Loader'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { formatCOP } from '../lib/money'
 
 type Txn = {
   id: string
@@ -24,7 +25,7 @@ type CurrencyTotals = {
 }
 
 function formatAmount(value: number, currency: string) {
-  return `${currency} ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `${currency} ${formatCOP(value)}`
 }
 
 export default function Dashboard() {
