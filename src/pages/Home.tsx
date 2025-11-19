@@ -6,6 +6,8 @@ import { fullSync, fetchContributors } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
 import { normalizeTxn } from '../lib/transactions'
 import useOnlineStatus from '../hooks/useOnlineStatus'
+import MoneyInput from '../components/MoneyInput'
+import { formatCOP } from '../lib/money'
 
 // const supabase = getSupabase()
 
@@ -22,7 +24,7 @@ export default function Home() {
   const [deleting, setDeleting] = useState<LocalTxn | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
 
-  const [amount, setAmount] = useState<string>('')
+  const [amount, setAmount] = useState<number>(0)
   const [type, setType] = useState<TxnType>('expense')
   const [currency, setCurrency] = useState<Currency>('COP')
   const [verticalId, setVerticalId] = useState<string>('')
@@ -106,7 +108,7 @@ export default function Home() {
   }
 
   function resetForm() {
-    setAmount('')
+    setAmount(0)
     setType('expense')
     setCurrency('COP')
     setVerticalId('')
@@ -123,7 +125,7 @@ export default function Home() {
     try {
       const isSettlement = detectSettlement(description, categoryId || null)
       const txn: Omit<LocalTxn, 'id' | 'created_at' | 'updated_at'> = {
-        amount: Number(amount),
+        amount,
         type,
         currency,
         date,
@@ -203,13 +205,10 @@ export default function Home() {
           <form onSubmit={saveTxn} className="space-y-8">
             <div className="flex flex-col items-center gap-3 text-center">
               <label className="text-sm font-medium uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Registrar movimiento</label>
-              <input
-                type="number"
-                step="0.01"
+              <MoneyInput
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                required
-                placeholder="0.00"
+                onChange={setAmount}
+                placeholder="0"
                 className="w-full md:w-2/3 lg:w-1/2 rounded-[2rem] border-2 border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-8 py-6 text-center text-4xl font-semibold tracking-tight text-[rgb(var(--fg))] shadow-sm transition focus:border-[rgb(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
               />
             </div>
@@ -382,10 +381,10 @@ export default function Home() {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className={`text-sm font-semibold whitespace-nowrap ${t.type==='expense' ? 'text-red-400' : 'text-green-400'}`}>
-                      {t.type==='expense' ? '-' : '+'}{t.currency || 'COP'} {t.amount.toFixed(2)}
+                      {t.type==='expense' ? '-' : '+'}{t.currency || 'COP'} {formatCOP(t.amount)}
                     </div>
-                    <button 
-                      onClick={() => setEditing(normalizeTxn(t))} 
+                    <button
+                      onClick={() => setEditing(normalizeTxn(t))}
                       className="p-1.5 text-[rgb(var(--muted))] transition hover:text-[rgb(var(--fg))] hover:bg-[rgb(var(--card-hover))] rounded"
                       aria-label="Editar"
                     >
@@ -415,12 +414,10 @@ export default function Home() {
           <div className="w-full max-w-md rounded-3xl bg-[rgb(var(--card))] p-6 shadow-xl border border-[rgb(var(--border))]">
             <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Editar movimiento</h3>
             <div className="mt-4 grid grid-cols-1 gap-3">
-              <input
-                type="number"
-                step="0.01"
+              <MoneyInput
                 value={editing.amount}
-                onChange={(e) => setEditing({ ...editing, amount: Number(e.target.value) })}
-                className="input"
+                onChange={(value) => setEditing({ ...editing, amount: value })}
+                className="w-full"
               />
               <div className="flex justify-center">
                 <div className="inline-flex w-full justify-between rounded-full bg-[rgb(var(--input-bg))] p-1 border border-[rgb(var(--border))]">
