@@ -31,6 +31,16 @@ export interface Txn {
   updated_at: string
   deleted?: boolean
   is_settlement?: boolean
+  settled?: boolean
+  occurred_on?: string
+}
+
+export interface SettlementPayment {
+  id: string
+  txn_id: string
+  amount: number
+  occurred_on: string
+  created_at: string
 }
 
 export interface LogbookTables {
@@ -48,6 +58,7 @@ export class LogbookDB extends Dexie {
   verticals!: Dexie.Table<Vertical, string>
   categories!: Dexie.Table<Category, string>
   contributors!: Dexie.Table<Contributor, string>
+  settlement_payments!: Dexie.Table<SettlementPayment, string>
   meta!: Dexie.Table<MetaRow, string>
 
   constructor() {
@@ -66,6 +77,20 @@ export class LogbookDB extends Dexie {
       categories: 'id, updated_at, vertical_id',
       contributors: 'id, updated_at',
       meta: '&key',
+    })
+    this.version(3).stores({
+      txns: 'id, updated_at, date, type, contributor_id, settled',
+      outbox: '++id, ts, table, op',
+      verticals: 'id, updated_at',
+      categories: 'id, updated_at, vertical_id',
+      contributors: 'id, updated_at',
+      settlement_payments: 'id, txn_id, occurred_on',
+      meta: '&key',
+    }).upgrade(async (tx) => {
+      await tx.table('txns').toCollection().modify((row: any) => {
+        row.is_settlement = Boolean(row.is_settlement)
+        row.settled = Boolean(row.settled)
+      })
     })
   }
 }
@@ -95,6 +120,7 @@ export async function queueInsert<T extends keyof LogbookTables>(
   const record: any = { ...row, id, created_at: now, updated_at: now }
   if (table === 'txns') {
     record.is_settlement = Boolean((record as Txn).is_settlement)
+    record.settled = Boolean((record as Txn).settled)
   }
   await (db.table(table) as any).put(record)
   await db.outbox.add({ table, op: 'insert', row: record, ts: Date.now() })
@@ -106,6 +132,9 @@ export async function queueUpdate<T extends keyof LogbookTables>(table: T, id: a
   const record = { ...(changes as any), id, updated_at: now }
   if (table === 'txns' && 'is_settlement' in record) {
     record.is_settlement = Boolean(record.is_settlement)
+  }
+  if (table === 'txns' && 'settled' in record) {
+    record.settled = Boolean(record.settled)
   }
   await (db.table(table) as any).update(id, record)
   await db.outbox.add({ table, op: 'update', row: record, ts: Date.now() })

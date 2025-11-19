@@ -11,16 +11,18 @@ export function normalizeTxnType(value: unknown): TxnType {
   return 'expense'
 }
 
-export function normalizeTxn<T extends Partial<Txn>>(txn: T): T & { type: TxnType; amount: number; is_settlement: boolean } {
+export function normalizeTxn<T extends Partial<Txn>>(txn: T): T & { type: TxnType; amount: number; is_settlement: boolean; settled: boolean } {
   const type = normalizeTxnType(txn.type)
   const rawAmount = typeof txn.amount === 'number' ? txn.amount : Number(txn.amount ?? 0)
   const amount = Number.isFinite(rawAmount) ? Math.abs(rawAmount) : 0
   const isSettlement = Boolean((txn as any).is_settlement)
+  const settled = Boolean((txn as any).settled)
 
   return {
     ...txn,
     type,
     amount,
     is_settlement: isSettlement,
-  } as T & { type: TxnType; amount: number; is_settlement: boolean }
+    settled,
+  } as T & { type: TxnType; amount: number; is_settlement: boolean; settled: boolean }
 }

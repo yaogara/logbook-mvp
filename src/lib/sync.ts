@@ -2,7 +2,10 @@ import { getSupabase, safeQuery } from './supabase'
 import { db, setLastSync } from './db'
 import { normalizeTxnType } from './transactions'
 
-type TableName = 'txns' | 'verticals' | 'categories'
+const OUTBOX_TABLES = ['txns', 'verticals', 'categories', 'contributors'] as const
+const SYNC_TABLES = ['verticals', 'categories', 'contributors', 'txns', 'settlement_payments'] as const
+
+type TableName = typeof OUTBOX_TABLES[number]
 
 export async function pushOutbox() {
   if (!navigator.onLine) {
@@ -22,7 +25,7 @@ export async function pushOutbox() {
     for (const item of items) {
       try {
         if (!['insert', 'update', 'delete'].includes(item.op)) continue
-        if (!['txns', 'verticals', 'categories'].includes(item.table as string)) continue
+        if (!(OUTBOX_TABLES as readonly string[]).includes(item.table as string)) continue
         const table = item.table as TableName
         const row = item.row
         
@@ -62,6 +65,7 @@ export async function pushOutbox() {
             const description = row.description ?? null
             const id = row.id // we generate UUIDs locally; send as id
             const client_id = row.id // also set client_id for traceability
+            const settled = Boolean(row.settled)
             
             // Generate occurred_on timestamp
             let occurred_on: string
@@ -84,6 +88,7 @@ export async function pushOutbox() {
               vertical_id,
               category_id,
               description,
+              settled,
             }
             
             // Only include contributor_id if it has a valid value
@@ -108,6 +113,11 @@ export async function pushOutbox() {
             )
           } else if (table === 'categories') {
             const allowed = ['id','name','vertical_id'] as const
+            payload = Object.fromEntries(
+              Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
+            )
+          } else if (table === 'contributors') {
+            const allowed = ['id', 'email', 'name'] as const
             payload = Object.fromEntries(
               Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
             )
@@ -139,16 +149,16 @@ export async function pullSince() {
     console.warn('⚠️ Offline mode: skipping sync')
     return
   }
-  const supabase = getSupabase();
-  const now = new Date().toISOString();
-  for (const table of ['verticals', 'categories', 'contributors', 'txns']) {
+  const supabase = getSupabase()
+  const now = new Date().toISOString()
+  for (const table of SYNC_TABLES) {
     try {
-      let q = supabase.from(table).select('*');
+      let q = supabase.from(table).select('*')
       // Avoid filtering by updated_at since the column may not exist on the server schema
-      const { data, error } = await safeQuery<any[]>(() => q.then((r: any) => r), `pull ${table}`);
-      if (error) throw error;
+      const { data, error } = await safeQuery<any[]>(() => q.then((r: any) => r), `pull ${table}`)
+      if (error) throw error
       if (data && data.length) {
-        const tx = db.transaction('rw', db.table(table), async () => {
+        const tx = db.transaction('rw', (db as any)[table], async () => {
           for (const row of data as any[]) {
             let normalizedRow = { ...row }
             if (table === 'txns') {
@@ -171,30 +181,37 @@ export async function pullSince() {
                   : Number(normalizedRow.amount ?? 0)
               normalizedRow.amount = Number.isFinite(rawAmount) ? Math.abs(rawAmount) : 0
               normalizedRow.is_settlement = Boolean(normalizedRow.is_settlement)
+              normalizedRow.settled = Boolean(normalizedRow.settled)
             }
-            await (db.table(table) as any).put(normalizedRow);
+            if (table === 'settlement_payments') {
+              const numericAmount = typeof normalizedRow.amount === 'number'
+                ? normalizedRow.amount
+                : Number(normalizedRow.amount ?? 0)
+              normalizedRow.amount = Number.isFinite(numericAmount) ? numericAmount : 0
+            }
+            await (db.table(table) as any).put(normalizedRow)
           }
-        });
-        await tx;
+        })
+        await tx
 
         // 🧹 Remove local records not on server
-        const localRows = await (db.table(table) as any).toArray();
-        const serverIds = new Set((data as any[]).map(r => r.id));
+        const localRows = await (db as any)[table].toArray()
+        const serverIds = new Set((data as any[]).map(r => r.id))
         for (const localRow of localRows) {
           if (!serverIds.has(localRow.id)) {
-            await (db.table(table) as any).delete(localRow.id);
-            console.log(`🗑 Removed ${table} row not found on server:`, localRow.id);
+            await (db as any)[table].delete(localRow.id)
+            console.log(`🗑 Removed ${table} row not found on server:`, localRow.id)
           }
         }
       } else {
-        console.log(`⚠️ Server returned no data for ${table}. Clearing local cache.`);
-        await db.table(table).clear();
+        console.log(`⚠️ Server returned no data for ${table}. Clearing local cache.`)
+        await db.table(table).clear()
       }
     } catch (err) {
       // Continue to next table; pull is best-effort
     }
   }
-  await setLastSync(now);
+  await setLastSync(now)
 }
 
 export async function fullSync() {

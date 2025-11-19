@@ -1,161 +1,474 @@
-import { useEffect, useState } from 'react'
-import { supabase, safeQuery } from '../lib/supabase'
-import Loader from '../components/Loader'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { OfflineBanner } from '../components/OfflineBanner'
+import Loader from '../components/Loader'
 import { useToast } from '../components/ToastProvider'
-import { queueInsert } from '../lib/db'
-import { fullSync } from '../lib/sync'
-import type { Txn } from '../types'
+import {
+  queueInsert,
+  db,
+  type SettlementPayment as LocalSettlementPayment,
+  type Txn as LocalTxn,
+} from '../lib/db'
+import { fullSync, fetchContributors } from '../lib/sync'
+import { supabase } from '../lib/supabase'
+import useOnlineStatus from '../hooks/useOnlineStatus'
+import type { Currency } from '../types'
 
-type ContributorBalance = {
-  contributor_id: string
-  contributor_email: string
-  contributor_name: string | null
-  balance: number
-  currency: string | null
+type DebtItem = {
+  txnId: string
+  description?: string
+  occurredOn?: string
+  originalAmount: number
+  totalPaid: number
+  remaining: number
+  currency: string
+  type: LocalTxn['type']
+  payments: LocalSettlementPayment[]
 }
 
-type SupabaseContributorBalance = {
-  contributor_id: string
-  email: string | null
+type ContributorCurrencyGroup = {
+  currency: string
+  debts: DebtItem[]
+  totals: {
+    owedToUs: number
+    weOwe: number
+  }
+}
+
+type ContributorCardData = {
+  contributorId: string
   name: string | null
-  balance: number | string | null
-  currency: string | null
+  email: string | null
+  displayName: string
+  groups: ContributorCurrencyGroup[]
+  totalOwedToUs: number
+  totalWeOwe: number
 }
 
-function formatCurrency(amount: number, currency: string | null | undefined): string {
-  const currencyCode = currency || 'COP'
-  const locale = currencyCode === 'USD' ? 'en-US' : 'es-CO'
-  return new Intl.NumberFormat(locale, { 
-    style: 'currency', 
-    currency: currencyCode,
+type SummaryEntry = {
+  currency: string
+  owedToUs: number
+  weOwe: number
+}
+
+type SettlementModalState = {
+  mode: 'full' | 'partial'
+  contributor: { id: string; name: string | null; email: string | null }
+  debt: DebtItem
+  amount: string
+  maxAmount: number
+  currency: string
+  verticalId: string
+  error: string | null
+}
+
+const KNOWN_CURRENCIES: Currency[] = ['COP', 'USD', 'EUR']
+
+function normalizeCurrency(value: string | null | undefined): Currency {
+  const upper = (value ?? 'COP').toUpperCase()
+  return (KNOWN_CURRENCIES as ReadonlyArray<string>).includes(upper) ? (upper as Currency) : 'COP'
+}
+
+function formatCurrency(amount: number, currency: string | null | undefined) {
+  const code = currency ?? 'COP'
+  const locale =
+    code === 'USD' ? 'en-US' : code === 'EUR' ? 'es-ES' : 'es-CO'
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency: code,
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
+    maximumFractionDigits: 2,
+  }).format(Number.isFinite(amount) ? amount : 0)
+}
+
+function formatDate(iso?: string) {
+  if (!iso) return 'Sin fecha'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return 'Sin fecha'
+  return date.toLocaleDateString('es-CO', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+function TotalsByCurrency({ contributor }: { contributor: ContributorCardData }) {
+  const owedLines = contributor.groups
+    .filter((group) => group.totals.owedToUs > 0)
+    .map((group) => formatCurrency(group.totals.owedToUs, group.currency))
+
+  const oweLines = contributor.groups
+    .filter((group) => group.totals.weOwe > 0)
+    .map((group) => formatCurrency(group.totals.weOwe, group.currency))
+
+  const fallbackCurrency = contributor.groups[0]?.currency ?? 'COP'
+
+  return (
+    <div className="flex flex-col items-end text-xs text-[rgb(var(--muted))]">
+      <span>
+        Nos deben:{' '}
+        <span className="font-semibold text-green-400">
+          {owedLines.length
+            ? owedLines.join(' · ')
+            : formatCurrency(0, fallbackCurrency)}
+        </span>
+      </span>
+      <span>
+        Les debemos:{' '}
+        <span className="font-semibold text-amber-300">
+          {oweLines.length
+            ? oweLines.join(' · ')
+            : formatCurrency(0, fallbackCurrency)}
+        </span>
+      </span>
+    </div>
+  )
 }
 
 export default function Contributors() {
+  const online = useOnlineStatus()
   const { show } = useToast()
-  const [balances, setBalances] = useState<ContributorBalance[]>([])
+  const [cards, setCards] = useState<ContributorCardData[]>([])
+  const [summary, setSummary] = useState<SummaryEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showOnlyNonZero, setShowOnlyNonZero] = useState(true)
-  const [settling, setSettling] = useState<string | null>(null)
+  const [verticals, setVerticals] = useState<{ id: string; name: string }[]>([])
+  const [modalState, setModalState] = useState<SettlementModalState | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  async function loadBalances() {
-    setLoading(true)
-    setError(null)
-    try {
-      const { data, error } = await safeQuery<SupabaseContributorBalance[]>(
-        () =>
-          supabase
-            .from('contributor_balances')
-            .select('contributor_id, email, name, balance, currency')
-            .then((r) => r),
-        'load contributor balances',
-      )
-      if (error) throw error
-      const normalized = (data ?? []).map<ContributorBalance>((row) => ({
-        contributor_id: row.contributor_id,
-        contributor_email: row.email ?? 'Unknown contributor',
-        contributor_name: row.name,
-        balance: typeof row.balance === 'string' ? parseFloat(row.balance) : row.balance ?? 0,
-        currency: row.currency ?? null,
-      }))
-      setBalances(normalized)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to load contributor balances'
-      setError(message)
-    } finally {
-      setLoading(false)
-    }
-  }
+  const defaultVerticalId = useMemo(
+    () => verticals[0]?.id ?? '',
+    [verticals],
+  )
+
+  const refresh = useCallback(
+    async (options: { withSync?: boolean } = {}) => {
+      setLoading(true)
+      setError(null)
+      if (options.withSync && online) {
+        try {
+          await fullSync()
+        } catch (err) {
+          console.warn('⚠️ Full sync failed, falling back to local cache', err)
+        }
+      }
+
+      try {
+        const [txns, payments, verticalRows] = await Promise.all([
+          db.txns.toArray(),
+          db.settlement_payments.toArray(),
+          db.verticals.toArray(),
+        ])
+
+        setVerticals(verticalRows)
+
+        let contributorRows = await db.contributors.toArray()
+        if (online) {
+          try {
+            const fresh = await fetchContributors()
+            if (fresh?.length) contributorRows = fresh
+          } catch (err) {
+            console.warn('⚠️ Failed to refresh contributors:', err)
+          }
+        }
+
+        const contributorLookup = new Map(
+          contributorRows.map((contrib) => [contrib.id, contrib]),
+        )
+
+        const paymentsByTxn = new Map<string, LocalSettlementPayment[]>()
+        for (const payment of payments) {
+          const normalizedAmount = Number(payment.amount ?? 0)
+          const normalizedPayment = {
+            ...payment,
+            amount: Number.isFinite(normalizedAmount) ? normalizedAmount : 0,
+          }
+          const list = paymentsByTxn.get(payment.txn_id) ?? []
+          list.push(normalizedPayment)
+          paymentsByTxn.set(payment.txn_id, list)
+        }
+        for (const list of paymentsByTxn.values()) {
+          list.sort((a, b) =>
+            (a.occurred_on ?? '').localeCompare(b.occurred_on ?? ''),
+          )
+        }
+
+        const cardsMap = new Map<
+          string,
+          { info: ContributorCardData; groups: Map<string, ContributorCurrencyGroup> }
+        >()
+
+        for (const txn of txns) {
+          if (txn.deleted || (txn as any).deleted_at) continue
+          if (!txn.contributor_id) continue
+          if (txn.is_settlement) continue
+          if (txn.settled) continue
+
+          const originalAmount = Number(txn.amount ?? 0)
+          if (!Number.isFinite(originalAmount) || originalAmount <= 0) continue
+
+          const paymentsForTxn = paymentsByTxn.get(txn.id) ?? []
+          const totalPaid = paymentsForTxn.reduce(
+            (sum, payment) => sum + Number(payment.amount ?? 0),
+            0,
+          )
+          const remainingRaw = Math.max(0, originalAmount - totalPaid)
+          const remaining = Number(remainingRaw.toFixed(2))
+          if (remaining <= 0) continue
+
+          const currency = txn.currency || 'COP'
+          const contributorId = txn.contributor_id
+          const contributor = contributorLookup.get(contributorId)
+
+          let entry = cardsMap.get(contributorId)
+          if (!entry) {
+            const displayName =
+              contributor?.name || contributor?.email || 'Sin nombre'
+            entry = {
+              info: {
+                contributorId,
+                name: contributor?.name ?? null,
+                email: contributor?.email ?? null,
+                displayName,
+                groups: [],
+                totalOwedToUs: 0,
+                totalWeOwe: 0,
+              },
+              groups: new Map<string, ContributorCurrencyGroup>(),
+            }
+            cardsMap.set(contributorId, entry)
+          }
+
+          let group = entry.groups.get(currency)
+          if (!group) {
+            group = {
+              currency,
+              debts: [],
+              totals: { owedToUs: 0, weOwe: 0 },
+            }
+            entry.groups.set(currency, group)
+          }
+
+          const debt: DebtItem = {
+            txnId: txn.id,
+            description: txn.description,
+            occurredOn: txn.occurred_on ?? txn.date,
+            originalAmount: Number(originalAmount.toFixed(2)),
+            totalPaid: Number(totalPaid.toFixed(2)),
+            remaining,
+            currency,
+            type: txn.type,
+            payments: paymentsForTxn.slice(),
+          }
+
+          group.debts.push(debt)
+          if (txn.type === 'income') {
+            group.totals.owedToUs += remaining
+            entry.info.totalOwedToUs += remaining
+          } else {
+            group.totals.weOwe += remaining
+            entry.info.totalWeOwe += remaining
+          }
+        }
+
+        const cardsList = Array.from(cardsMap.values())
+          .map(({ info, groups }) => {
+            const sortedGroups = Array.from(groups.values())
+              .map((group) => ({
+                currency: group.currency,
+                debts: group.debts.sort(
+                  (a, b) => b.remaining - a.remaining,
+                ),
+                totals: {
+                  owedToUs: Number(group.totals.owedToUs.toFixed(2)),
+                  weOwe: Number(group.totals.weOwe.toFixed(2)),
+                },
+              }))
+              .sort((a, b) => a.currency.localeCompare(b.currency))
+
+            return {
+              ...info,
+              groups: sortedGroups,
+              totalOwedToUs: Number(info.totalOwedToUs.toFixed(2)),
+              totalWeOwe: Number(info.totalWeOwe.toFixed(2)),
+            }
+          })
+          .sort(
+            (a, b) =>
+              b.totalOwedToUs +
+              b.totalWeOwe -
+              (a.totalOwedToUs + a.totalWeOwe),
+          )
+
+        setCards(cardsList)
+
+        const summaryMap = new Map<string, SummaryEntry>()
+        for (const card of cardsList) {
+          for (const group of card.groups) {
+            const entry = summaryMap.get(group.currency) ?? {
+              currency: group.currency,
+              owedToUs: 0,
+              weOwe: 0,
+            }
+            entry.owedToUs += group.totals.owedToUs
+            entry.weOwe += group.totals.weOwe
+            summaryMap.set(group.currency, entry)
+          }
+        }
+
+        const summaryList = Array.from(summaryMap.values())
+          .map((entry) => ({
+            currency: entry.currency,
+            owedToUs: Number(entry.owedToUs.toFixed(2)),
+            weOwe: Number(entry.weOwe.toFixed(2)),
+          }))
+          .sort((a, b) => a.currency.localeCompare(b.currency))
+
+        setSummary(summaryList)
+      } catch (err) {
+        const message =
+          err instanceof Error
+            ? err.message
+            : 'No se pudieron cargar los movimientos de contribuyentes'
+        setCards([])
+        setSummary([])
+        setError(message)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [online],
+  )
 
   useEffect(() => {
-    void loadBalances()
-  }, [])
+    void refresh({ withSync: true })
+  }, [refresh])
 
-  const totalsByCurrency = balances.reduce<Record<string, number>>((sumByCurrency, b) => {
-    const key = b.currency || 'COP'
-    const current = sumByCurrency[key] ?? 0
-    return {
-      ...sumByCurrency,
-      [key]: current + (b.balance || 0),
+  function openSettlementModal(
+    mode: 'full' | 'partial',
+    contributor: ContributorCardData,
+    debt: DebtItem,
+  ) {
+    const preferredVertical = modalState?.verticalId || defaultVerticalId
+    setModalState({
+      mode,
+      contributor: {
+        id: contributor.contributorId,
+        name: contributor.name,
+        email: contributor.email,
+      },
+      debt,
+      amount: mode === 'full' ? debt.remaining.toFixed(2) : '',
+      maxAmount: debt.remaining,
+      currency: debt.currency,
+      verticalId: preferredVertical,
+      error: null,
+    })
+  }
+
+  async function handleConfirmSettlement() {
+    if (!modalState) return
+
+    if (!online) {
+      setModalState((prev) =>
+        prev ? { ...prev, error: 'Necesitas conexión para registrar el pago.' } : prev,
+      )
+      return
     }
-  }, {})
 
-  const visibleBalances = showOnlyNonZero
-    ? balances.filter(b => b.balance !== 0)
-    : balances
+    const parsedAmount = Number(modalState.amount)
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      setModalState((prev) =>
+        prev
+          ? { ...prev, error: 'Ingresa un monto válido mayor a cero.' }
+          : prev,
+      )
+      return
+    }
 
-  const balancesByCurrency = visibleBalances.reduce<Record<string, ContributorBalance[]>>((grouped, balance) => {
-    const key = balance.currency || 'COP'
-    if (!grouped[key]) grouped[key] = []
-    grouped[key].push(balance)
-    return grouped
-  }, {})
+    if (parsedAmount - modalState.maxAmount > 0.01) {
+      setModalState((prev) =>
+        prev
+          ? {
+              ...prev,
+              error: `El monto excede el saldo restante (${formatCurrency(
+                modalState.maxAmount,
+                modalState.currency,
+              )}).`,
+            }
+          : prev,
+      )
+      return
+    }
 
-  async function handleSettle(contributor: ContributorBalance) {
-    const currency = contributor.currency || 'COP'
-    const key = `${contributor.contributor_id}-${currency}`
-    if (settling) return
-    setSettling(key)
+    if (!modalState.verticalId) {
+      setModalState((prev) =>
+        prev
+          ? {
+              ...prev,
+              error: 'Selecciona un vertical para registrar el gasto.',
+            }
+          : prev,
+      )
+      return
+    }
+
+    setSubmitting(true)
+    setModalState((prev) => (prev ? { ...prev, error: null } : prev))
+
     try {
-      const amount = Math.abs(contributor.balance || 0)
-      if (amount === 0) return
+      const { error: fnError } = await supabase.functions.invoke('settlements', {
+        body: {
+          txn_id: modalState.debt.txnId,
+          amount: parsedAmount,
+        },
+      })
 
-      const contributorTxnType: Txn['type'] =
-        contributor.balance > 0 ? 'expense' : 'income'
-      const offsetTxnType: Txn['type'] =
-        contributorTxnType === 'income' ? 'expense' : 'income'
+      if (fnError) {
+        throw new Error(fnError.message ?? 'No se pudo registrar el pago')
+      }
 
-      const baseTxn: Omit<Txn, 'id' | 'created_at' | 'updated_at'> = {
-        amount,
-        currency: currency as Txn['currency'],
-        type: contributorTxnType,
-        date: '',
-        time: '',
-        vertical_id: null,
-        category_id: null,
-        contributor_id: contributor.contributor_id,
-        description: `Settlement (${currency})`,
-        deleted: false,
-        is_settlement: true,
-      } as any
-
-      await queueInsert('txns', baseTxn)
+      const now = new Date()
+      const iso = now.toISOString()
+      const date = iso.slice(0, 10)
+      const time = iso.slice(11, 16)
+      const currency = normalizeCurrency(modalState.currency)
 
       await queueInsert(
         'txns',
         {
-          ...baseTxn,
-          type: offsetTxnType,
+          amount: parsedAmount,
+          currency,
+          type: 'expense',
+          date,
+          time,
+          vertical_id: modalState.verticalId || null,
+          category_id: null,
           contributor_id: null,
-          description: `Settlement offset (${currency})`,
+          description: `Settlement payment for txn ${modalState.debt.txnId}`,
+          deleted: false,
           is_settlement: true,
+          settled: false,
         } as any,
       )
 
-      if (navigator.onLine) {
-        await fullSync()
-      }
+      await refresh({ withSync: online })
 
+      setModalState(null)
       show({
         variant: 'success',
-        title: `✅ Settlement recorded for ${contributor.contributor_name ?? contributor.contributor_email}`,
-        description: `${formatCurrency(amount, currency)} booked as ${contributorTxnType} and offset without contributor`,
+        title: 'Pago registrado',
+        description: `Se registró un ${
+          modalState.mode === 'full' ? 'pago total' : 'abono'
+        } de ${formatCurrency(parsedAmount, currency)}.`,
       })
-
-      await loadBalances()
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Unknown error'
-      show({ 
-        variant: 'error', 
-        title: 'Settlement failed', 
-        description: message 
-      })
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'No se pudo registrar el pago'
+      setModalState((prev) =>
+        prev ? { ...prev, error: message } : prev,
+      )
     } finally {
-      setSettling(null)
+      setSubmitting(false)
     }
   }
 
@@ -163,208 +476,314 @@ export default function Contributors() {
     <div>
       <OfflineBanner />
       <div className="space-y-6">
-        {/* Summary Card */}
-        <section 
-          className="card p-6 sm:p-8 border-2 transition border-[rgb(var(--border))]"
-        >
-          <h2 className="text-lg font-semibold text-[rgb(var(--fg))] mb-2">
-            Yaogará Balance Overview
+        <section className="card border-2 border-[rgb(var(--border))] p-6 sm:p-8">
+          <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">
+            Estado de deudas con contribuyentes
           </h2>
-          <div className="space-y-2">
-            {Object.keys(totalsByCurrency).length === 0 && (
-              <p className="text-sm text-[rgb(var(--muted))]">No balances recorded yet.</p>
-            )}
-            {Object.entries(totalsByCurrency).map(([currency, amount]) => (
-              <div key={currency}>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-sm text-[rgb(var(--muted))]">
-                    Outstanding ({currency}):
-                  </span>
-                  <span
-                    className={`text-2xl font-bold ${
-                      amount > 0
-                        ? 'text-green-400'
-                        : amount < 0
-                        ? 'text-red-400'
-                        : 'text-[rgb(var(--fg))]'
-                    }`}
-                  >
-                    {formatCurrency(amount, currency)}
-                  </span>
+          {summary.length === 0 ? (
+            <p className="mt-3 text-sm text-[rgb(var(--muted))]">
+              No hay deudas pendientes. Todo está al día.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {summary.map(({ currency, owedToUs, weOwe }) => (
+                <div
+                  key={currency}
+                  className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--card-hover))] p-4"
+                >
+                  <div className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">
+                    {currency}
+                  </div>
+                  <div className="mt-2 space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[rgb(var(--muted))]">Nos deben</span>
+                      <span className="font-semibold text-green-400">
+                        {formatCurrency(owedToUs, currency)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[rgb(var(--muted))]">Les debemos</span>
+                      <span className="font-semibold text-amber-300">
+                        {formatCurrency(weOwe, currency)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-[rgb(var(--muted))] mt-1">
-                  {amount > 0
-                    ? '🟢 Yaogará is owed money'
-                    : amount < 0
-                    ? '🔴 Yaogará owes money'
-                    : 'All balances settled'}
-                </p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
-        {/* Filter Toggle */}
-        <section className="flex items-center justify-between">
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={showOnlyNonZero}
-              onChange={(e) => setShowOnlyNonZero(e.target.checked)}
-              className="w-4 h-4 rounded border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] text-[rgb(var(--primary))] focus:ring-2 focus:ring-[rgb(var(--ring))] cursor-pointer"
-            />
-            <span className="text-sm text-[rgb(var(--muted))] group-hover:text-[rgb(var(--fg))] transition">
-              Show only non-zero balances
-            </span>
-          </label>
-          
-          <button 
-            onClick={loadBalances} 
-            disabled={loading} 
-            className="btn-ghost disabled:opacity-50 disabled:cursor-not-allowed text-xs"
-            title="Refresh balances"
+        <section className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs text-[rgb(var(--muted))]">
+              Sincroniza para traer los últimos pagos y deudas.
+            </p>
+          </div>
+          <button
+            onClick={() => refresh({ withSync: true })}
+            disabled={loading || submitting}
+            className="btn-ghost text-xs disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? (
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" opacity="0.25" />
-                <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
-              </svg>
-            ) : (
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-              </svg>
-            )}
-            Refresh
+            {loading ? 'Actualizando…' : 'Actualizar'}
           </button>
         </section>
 
         {error && (
-          <div className="rounded-lg border border-red-400/20 bg-red-500/10 text-red-400 px-4 py-3 text-sm">
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
           </div>
         )}
 
-        {/* Loading State */}
-        {loading && balances.length === 0 && (
+        {loading && cards.length === 0 && (
           <div className="flex justify-center py-12">
-            <Loader label="Loading balances…" />
+            <Loader label="Cargando deudas…" />
           </div>
         )}
 
-        {/* Empty State */}
-        {!loading && balances.length === 0 && !error && (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] py-10 text-center text-sm text-[rgb(var(--muted))]">
-            <span className="text-base font-medium text-[rgb(var(--fg))]">
-              No contributor balances yet
-            </span>
+        {!loading && cards.length === 0 && !error && (
+          <div className="rounded-2xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] py-10 text-center text-sm text-[rgb(var(--muted))]">
+            No hay deudas pendientes con contribuyentes.
           </div>
         )}
 
-        {/* Contributor Cards */}
-        {!loading && visibleBalances.length > 0 && (
-          <div className="space-y-10">
-            {Object.entries(balancesByCurrency).map(([currency, contributors]) => (
-              <section key={currency}>
-                <h3 className="text-sm font-semibold text-[rgb(var(--muted))] uppercase tracking-wide mb-3">
-                  {currency} balances
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {contributors.map((contributor) => (
-                    <div
-                      key={`${currency}-${contributor.contributor_id}`}
-                      className={`card p-5 transition hover:shadow-lg ${
-                        contributor.balance !== 0 ? 'border-l-4' : ''
-                      } ${
-                        contributor.balance > 0 
-                          ? 'border-l-green-400' 
-                          : contributor.balance < 0 
-                          ? 'border-l-red-400' 
-                          : ''
-                      }`}
-                    >
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[rgb(var(--card-hover))] flex items-center justify-center">
-                          <span className="text-sm font-medium">
-                            {(contributor.contributor_name?.charAt(0) || contributor.contributor_email.charAt(0)).toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-[rgb(var(--fg))] truncate" title={contributor.contributor_name ?? contributor.contributor_email}>
-                            👤 {contributor.contributor_name ?? contributor.contributor_email}
-                          </div>
-                        </div>
-                      </div>
+        {!loading && cards.length > 0 && (
+          <div className="space-y-8">
+            {cards.map((contributor) => (
+              <section
+                key={contributor.contributorId}
+                className="space-y-4 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-sm"
+              >
+                <header className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-[rgb(var(--fg))]">
+                      👤 {contributor.displayName}
+                    </h3>
+                    {contributor.email && (
+                      <p className="text-xs text-[rgb(var(--muted))]">
+                        {contributor.email}
+                      </p>
+                    )}
+                  </div>
+                  <TotalsByCurrency contributor={contributor} />
+                </header>
 
-                      <div className="mb-4">
-                        <div className="text-xs text-[rgb(var(--muted))] mb-1">Balance</div>
-                        <div 
-                          className={`text-xl font-bold ${
-                            contributor.balance > 0 
-                              ? 'text-green-400' 
-                              : contributor.balance < 0 
-                              ? 'text-red-400' 
-                              : 'text-[rgb(var(--fg))]'
-                          }`}
-                        >
-                          💰 {formatCurrency(contributor.balance, contributor.currency)}
-                        </div>
-                        {contributor.balance > 0 && (
-                          <div className="text-xs text-green-400/80 mt-1">
-                            Yaogará is owed
-                          </div>
-                        )}
-                        {contributor.balance < 0 && (
-                          <div className="text-xs text-red-400/80 mt-1">
-                            Yaogará owes
-                          </div>
-                        )}
-                      </div>
-
-                      {contributor.balance !== 0 && (
-                        <button
-                          onClick={() => handleSettle(contributor)}
-                          disabled={settling === `${contributor.contributor_id}-${contributor.currency || 'COP'}`}
-                          className="w-full btn-primary disabled:opacity-60 disabled:cursor-not-allowed text-sm py-2"
-                        >
-                          {settling === `${contributor.contributor_id}-${contributor.currency || 'COP'}` ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" opacity="0.25" />
-                                <path d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" opacity="0.75" />
-                              </svg>
-                              Settling…
-                            </span>
-                          ) : (
-                            'Settle'
-                          )}
-                        </button>
-                      )}
-
-                      {contributor.balance === 0 && (
-                        <div className="text-center text-xs text-[rgb(var(--muted))] py-2">
-                          ✓ Settled
-                        </div>
-                      )}
+                {contributor.groups.map((group) => (
+                  <div
+                    key={`${contributor.contributorId}-${group.currency}`}
+                    className="rounded-xl border border-[rgb(var(--border))] bg-[rgb(var(--card-hover))] p-4"
+                  >
+                    <div className="mb-3 flex items-center justify-between text-xs text-[rgb(var(--muted))]">
+                      <span className="uppercase tracking-wide">
+                        {group.currency}
+                      </span>
+                      <span>
+                        {group.debts.length} deuda{group.debts.length === 1 ? '' : 's'}
+                      </span>
                     </div>
-                  ))}
-                </div>
+
+                    <div className="space-y-4">
+                      {group.debts.map((debt) => {
+                        const progress =
+                          debt.originalAmount > 0
+                            ? Math.min(
+                                100,
+                                Math.round(
+                                  (debt.totalPaid / debt.originalAmount) * 100,
+                                ),
+                              )
+                            : 0
+                        const direction =
+                          debt.type === 'income'
+                            ? 'El contribuyente debe a Yaogará'
+                            : 'Yaogará debe al contribuyente'
+                        const isActionDisabled = !online || submitting
+
+                        return (
+                          <article
+                            key={debt.txnId}
+                            className="rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-4 shadow-sm"
+                          >
+                            <div className="mb-3 flex items-start justify-between gap-3">
+                              <div>
+                                <h4 className="text-sm font-semibold text-[rgb(var(--fg))]">
+                                  {debt.description || `Movimiento ${debt.txnId.slice(0, 8)}`}
+                                </h4>
+                                <p className="text-xs text-[rgb(var(--muted))]">
+                                  {direction} • Registrado el {formatDate(debt.occurredOn)}
+                                </p>
+                              </div>
+                              <div className="text-right text-sm font-semibold text-[rgb(var(--fg))]">
+                                {formatCurrency(debt.originalAmount, debt.currency)}
+                              </div>
+                            </div>
+
+                            <div className="mb-3 space-y-1 text-xs text-[rgb(var(--muted))]">
+                              <div className="flex justify-between">
+                                <span>Pagado</span>
+                                <span className="text-green-400">
+                                  {formatCurrency(debt.totalPaid, debt.currency)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span>Pendiente</span>
+                                <span className="text-amber-300">
+                                  {formatCurrency(debt.remaining, debt.currency)}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="mb-4 h-2 w-full overflow-hidden rounded-full bg-[rgb(var(--border))]">
+                              <div
+                                className="h-full rounded-full bg-[rgb(var(--primary))]"
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[rgb(var(--muted))]">
+                              <span>{debt.payments.length} pago(s) registrados</span>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => openSettlementModal('full', contributor, debt)}
+                                  disabled={isActionDisabled}
+                                  className="btn-primary px-4 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                                  title={
+                                    online
+                                      ? undefined
+                                      : 'Requiere conexión para registrar el pago'
+                                  }
+                                >
+                                  {submitting ? 'Procesando…' : 'Liquidar'}
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    openSettlementModal('partial', contributor, debt)
+                                  }
+                                  disabled={isActionDisabled}
+                                  className="btn-ghost px-4 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                                  title={
+                                    online
+                                      ? undefined
+                                      : 'Requiere conexión para registrar el pago'
+                                  }
+                                >
+                                  {submitting ? 'Procesando…' : 'Registrar abono'}
+                                </button>
+                              </div>
+                            </div>
+                          </article>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </section>
             ))}
           </div>
         )}
-
-        {/* No Results After Filtering */}
-        {!loading && balances.length > 0 && visibleBalances.length === 0 && (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] py-10 text-center text-sm text-[rgb(var(--muted))]">
-            <span className="text-base font-medium text-[rgb(var(--fg))]">
-              All balances are zero
-            </span>
-            <span className="text-xs">
-              Uncheck the filter to see all contributors
-            </span>
-          </div>
-        )}
       </div>
+
+      {modalState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md space-y-5 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-2xl">
+            <div>
+              <h3 className="text-lg font-semibold text-[rgb(var(--fg))]">
+                {modalState.mode === 'full'
+                  ? 'Liquidar deuda'
+                  : 'Registrar abono parcial'}
+              </h3>
+              <p className="text-sm text-[rgb(var(--muted))]">
+                {modalState.contributor.name || modalState.contributor.email || 'Contribuyente'} •{' '}
+                {modalState.debt.description || `Movimiento ${modalState.debt.txnId.slice(0, 8)}`}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-[rgb(var(--muted))]">
+                Monto ({modalState.currency})
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={modalState.amount}
+                onChange={(e) =>
+                  setModalState((prev) =>
+                    prev ? { ...prev, amount: e.target.value, error: null } : prev,
+                  )
+                }
+                disabled={modalState.mode === 'full'}
+                className="w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-3 py-2 text-sm text-[rgb(var(--fg))] focus:border-[rgb(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
+              />
+              <p className="text-xs text-[rgb(var(--muted))]">
+                Saldo restante: {formatCurrency(modalState.maxAmount, modalState.currency)}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase tracking-wide text-[rgb(var(--muted))]">
+                Vertical
+              </label>
+              <select
+                value={modalState.verticalId}
+                onChange={(e) =>
+                  setModalState((prev) =>
+                    prev ? { ...prev, verticalId: e.target.value, error: null } : prev,
+                  )
+                }
+                className="w-full rounded-lg border border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-3 py-2 text-sm text-[rgb(var(--fg))] focus:border-[rgb(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
+              >
+                <option value="">Selecciona un vertical</option>
+                {verticals.map((vertical) => (
+                  <option key={vertical.id} value={vertical.id}>
+                    {vertical.name}
+                  </option>
+                ))}
+              </select>
+              {verticals.length === 0 && (
+                <p className="text-xs text-amber-300">
+                  Crea un vertical para clasificar el gasto generado por el pago.
+                </p>
+              )}
+            </div>
+
+            {modalState.error && (
+              <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                {modalState.error}
+              </div>
+            )}
+
+            {!online && (
+              <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+                Conéctate a internet para registrar el pago con Supabase.
+              </div>
+            )}
+
+            <div className="flex justify-end gap-3 text-sm">
+              <button
+                onClick={() => setModalState(null)}
+                className="btn-ghost px-4 py-2"
+                disabled={submitting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmSettlement}
+                className="btn-primary px-4 py-2 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={
+                  submitting ||
+                  !online ||
+                  !modalState.verticalId ||
+                  !modalState.amount ||
+                  Number(modalState.amount) <= 0
+                }
+              >
+                {submitting ? 'Guardando…' : 'Confirmar pago'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
