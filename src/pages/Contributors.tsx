@@ -10,16 +10,11 @@ import {
 import { fullSync, fetchContributors } from '../lib/sync'
 import useOnlineStatus from '../hooks/useOnlineStatus'
 import { getSupabase, safeQuery } from '../lib/supabase'
+import { formatCOP } from '../lib/money'
 
 function formatCurrency(amount: number, currency: string | null | undefined) {
   const code = currency ?? 'COP'
-  const locale = code === 'USD' ? 'en-US' : code === 'EUR' ? 'es-ES' : 'es-CO'
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: code,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(Number.isFinite(amount) ? amount : 0)
+  return `${code} ${formatCOP(Number.isFinite(amount) ? amount : 0)}`
 }
 
 function balanceStatus(balance: number) {

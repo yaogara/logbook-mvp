@@ -5,6 +5,8 @@ import type { LocalTxn, Currency } from '../types'
 import { fullSync } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
 import { normalizeTxn } from '../lib/transactions'
+import { formatCOP } from '../lib/money'
+import MoneyInput from '../components/MoneyInput'
 
 export default function History() {
   const { show } = useToast()
@@ -263,7 +265,7 @@ export default function History() {
                         }`}
                       >
                         {txn.type === 'expense' ? '-' : '+'}
-                        {txn.currency} {txn.amount.toFixed(2)}
+                        {txn.currency} {formatCOP(txn.amount)}
                       </span>
                       <span className="text-xs text-[rgb(var(--muted))]">
                         {txn.date} {txn.time}
@@ -354,12 +356,10 @@ export default function History() {
               {/* Amount */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-[rgb(var(--muted))]">Monto</label>
-                <input
-                  type="number"
-                  step="0.01"
+                <MoneyInput
                   value={editing.amount}
-                  onChange={(e) => setEditing({ ...editing, amount: Number(e.target.value) })}
-                  className="input"
+                  onChange={(value) => setEditing({ ...editing, amount: value })}
+                  className="w-full"
                 />
               </div>
 
