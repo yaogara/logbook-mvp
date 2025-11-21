@@ -9,6 +9,32 @@ import useOnlineStatus from '../hooks/useOnlineStatus'
 import MoneyInput from '../components/MoneyInput'
 import { formatCOP } from '../lib/money'
 
+function parseTimestamp(value?: string | null) {
+  if (!value) return null
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T')
+  const dt = new Date(normalized)
+  return Number.isNaN(dt.getTime()) ? null : dt
+}
+
+function getTxnTimestamp(txn: LocalTxn) {
+  return (
+    txn.updated_at ||
+    txn.occurred_on ||
+    (txn.date ? `${txn.date}T${txn.time || '00:00'}` : null) ||
+    txn.created_at ||
+    null
+  )
+}
+
+function formatTxnTime(txn: LocalTxn) {
+  const ts = getTxnTimestamp(txn)
+  const dt = parseTimestamp(ts)
+  if (!dt) return txn.time || ''
+  const hours = String(dt.getHours()).padStart(2, '0')
+  const minutes = String(dt.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
 // const supabase = getSupabase()
 
 export default function Home() {
@@ -294,29 +320,31 @@ export default function Home() {
                 </div>
               </div>
 
-              <div>
-                <select
-                  value={contributorId ?? ''}
-                  onChange={(e) => setContributorId(e.target.value || null)}
-                  className="input w-full"
-                >
-                  <option value="">Sin colaborador</option>
-                  {contributors.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name || c.email}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <select
+                    value={contributorId ?? ''}
+                    onChange={(e) => setContributorId(e.target.value || null)}
+                    className="input w-full"
+                  >
+                    <option value="">Sin colaborador</option>
+                    {contributors.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name || c.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="input w-full"
-                  max={new Date().toISOString().split('T')[0]}
-                />
+                <div>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="input w-full"
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
               </div>
 
               <div>
@@ -377,7 +405,7 @@ export default function Home() {
                 <li key={t.id} className="py-3 flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-[rgb(var(--fg))] truncate">{t.description || (t.type === 'expense' ? 'Gasto' : 'Ingreso')}</div>
-                    <div className="text-xs text-[rgb(var(--muted))]">{t.date} {t.time || ''}</div>
+                    <div className="text-xs text-[rgb(var(--muted))]">{t.date} {formatTxnTime(t)}</div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <div className={`text-sm font-semibold whitespace-nowrap ${t.type==='expense' ? 'text-red-400' : 'text-green-400'}`}>

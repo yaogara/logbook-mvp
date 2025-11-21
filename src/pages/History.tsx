@@ -8,6 +8,37 @@ import { normalizeTxn } from '../lib/transactions'
 import { formatCOP } from '../lib/money'
 import MoneyInput from '../components/MoneyInput'
 
+function parseTimestamp(value?: string | null) {
+  if (!value) return null
+  const normalized = value.includes('T') ? value : value.replace(' ', 'T')
+  const dt = new Date(normalized)
+  return Number.isNaN(dt.getTime()) ? null : dt
+}
+
+function getTxnTimestamp(txn: LocalTxn) {
+  return (
+    txn.updated_at ||
+    txn.occurred_on ||
+    (txn.date ? `${txn.date}T${txn.time || '00:00'}` : null) ||
+    txn.created_at ||
+    null
+  )
+}
+
+function formatTxnTime(txn: LocalTxn) {
+  const ts = getTxnTimestamp(txn)
+  const dt = parseTimestamp(ts)
+  if (!dt) return txn.time || ''
+  const hours = String(dt.getHours()).padStart(2, '0')
+  const minutes = String(dt.getMinutes()).padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+function getTxnSortValue(txn: LocalTxn) {
+  const dt = parseTimestamp(getTxnTimestamp(txn))
+  return dt ? dt.getTime() : 0
+}
+
 export default function History() {
   const { show } = useToast()
   const [transactions, setTransactions] = useState<LocalTxn[]>([])
@@ -89,7 +120,7 @@ export default function History() {
     result.sort((a, b) => {
       let comparison = 0
       if (sortBy === 'date') {
-        comparison = (a.date + a.time).localeCompare(b.date + b.time)
+        comparison = getTxnSortValue(a) - getTxnSortValue(b)
       } else {
         comparison = a.amount - b.amount
       }
@@ -268,7 +299,7 @@ export default function History() {
                         {txn.currency} {formatCOP(txn.amount)}
                       </span>
                       <span className="text-xs text-[rgb(var(--muted))]">
-                        {txn.date} {txn.time}
+                        {txn.date} {formatTxnTime(txn)}
                       </span>
                     </div>
                     <div className="text-sm text-[rgb(var(--fg))]">
