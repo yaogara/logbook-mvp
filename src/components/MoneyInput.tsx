@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { parseCOP, formatCOP } from '../lib/money'
 
 type Props = {
@@ -10,6 +10,10 @@ type Props = {
 
 export default function MoneyInput({ value, onChange, placeholder, className = '' }: Props) {
   const [display, setDisplay] = useState(value ? formatCOP(value) : '')
+
+  useEffect(() => {
+    setDisplay(value ? formatCOP(value) : '')
+  }, [value])
 
   function handleInput(e: React.ChangeEvent<HTMLInputElement>) {
     const raw = e.target.value
