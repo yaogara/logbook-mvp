@@ -23,6 +23,18 @@ export interface Contributor {
   updated_at: string
 }
 
+export interface Retreat {
+  id: string
+  name: string
+  start_date: string
+  end_date?: string | null
+  default_vertical_id?: string | null
+  default_category_id?: string | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
 export interface Txn {
   id: string
   amount: number
@@ -33,6 +45,7 @@ export interface Txn {
   vertical_id?: string | null
   category_id?: string | null
   contributor_id?: string | null
+  retreat_id?: string | null
   description?: string
   created_at: string
   updated_at: string
@@ -56,6 +69,7 @@ export interface LogbookTables {
   verticals: Vertical
   categories: Category
   contributors: Contributor
+  retreats: Retreat
   settlement_payments: SettlementPayment
   meta: MetaRow
 }
@@ -66,6 +80,7 @@ export class LogbookDB extends Dexie {
   verticals!: Dexie.Table<Vertical, string>
   categories!: Dexie.Table<Category, string>
   contributors!: Dexie.Table<Contributor, string>
+  retreats!: Dexie.Table<Retreat, string>
   settlement_payments!: Dexie.Table<SettlementPayment, string>
   meta!: Dexie.Table<MetaRow, string>
 
@@ -120,6 +135,25 @@ export class LogbookDB extends Dexie {
           }
           if (!('auth_user_id' in row)) {
             row.auth_user_id = null
+          }
+        })
+      })
+
+    this.version(5)
+      .stores({
+        txns: 'id, updated_at, date, type, contributor_id, settled, retreat_id',
+        outbox: '++id, ts, table, op',
+        verticals: 'id, updated_at',
+        categories: 'id, updated_at, vertical_id',
+        contributors: 'id, email, auth_user_id, updated_at',
+        settlement_payments: 'id, txn_id, occurred_on',
+        retreats: 'id, updated_at, name',
+        meta: '&key',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('txns').toCollection().modify((row: any) => {
+          if (!('retreat_id' in row)) {
+            row.retreat_id = null
           }
         })
       })

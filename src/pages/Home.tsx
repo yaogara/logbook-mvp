@@ -233,34 +233,69 @@ export default function Home() {
     }
   }
 
+  function generateId() {
+    return 'retreat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9)
+  }
+
   async function handleRetreatSubmit(payload: RetreatSubmission) {
     setRetreatSubmitting(true)
+    const now = new Date().toISOString()
+    const txnTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+    const baseDate = payload.retreatDate || new Date().toISOString().split('T')[0]
+    
     try {
-      const txnTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
-      const baseDate = payload.retreatDate || new Date().toISOString().split('T')[0]
+      // Create the retreat record first
+      const retreatId = generateId()
+      const retreatData = {
+        id: retreatId,
+        name: payload.retreatName.trim(),
+        start_date: baseDate,
+        end_date: baseDate, // Same as start date by default
+        default_vertical_id: null,
+        default_category_id: null,
+        notes: null,
+        created_at: now,
+        updated_at: now,
+      }
+      
+      await queueInsert('retreats', retreatData)
+      
+      // Create transactions linked to the retreat
       for (const entry of payload.entries) {
         const entryDescription = [payload.retreatName, entry.description].filter(Boolean).join(' · ')
         const isSettlement = Boolean(entry.isSettlement)
+        
         await queueInsert('txns', {
+          id: `txn_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
           amount: entry.amount,
           type: entry.type,
           currency: entry.currency ?? 'COP',
           date: baseDate,
           time: txnTime,
-          vertical_id: null,
-          category_id: null,
+          vertical_id: entry.verticalId ?? null,
+          category_id: entry.categoryId ?? null,
           contributor_id: entry.contributorId ?? null,
+          retreat_id: retreatId,
           description: entryDescription || payload.retreatName,
+          created_at: now,
+          updated_at: now,
           deleted: false,
           is_settlement: isSettlement,
+          settled: false,
         } as any)
       }
+      
       await loadRecent()
       if (online) await fullSync()
       setRetreatDialogOpen(false)
-      show({ title: 'Retiro registrado', variant: 'success' })
+      show({ title: 'Retiro registrado exitosamente', variant: 'success' })
     } catch (err: any) {
-      show({ title: 'No se pudo registrar el retiro', description: String(err?.message || err), variant: 'error' })
+      console.error('Error registering retreat:', err)
+      show({ 
+        title: 'No se pudo registrar el retiro', 
+        description: String(err?.message || 'Ocurrió un error inesperado'), 
+        variant: 'error' 
+      })
       throw err
     } finally {
       setRetreatSubmitting(false)

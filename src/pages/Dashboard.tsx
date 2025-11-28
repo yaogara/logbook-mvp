@@ -15,6 +15,28 @@ type Txn = {
   description?: string
   occurred_on?: string
   is_settlement?: boolean
+  retreat_id?: string | null
+  date?: string
+  time?: string
+}
+
+type Retreat = {
+  id: string
+  name: string
+  start_date: string
+  end_date?: string | null
+  default_vertical_id?: string | null
+  default_category_id?: string | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
+
+type RetreatWithTransactions = Retreat & {
+  transactions: Txn[]
+  total: number
+  income: number
+  expense: number
 }
 
 type CurrencyTotals = {
@@ -30,14 +52,17 @@ function formatAmount(value: number, currency: string) {
 
 export default function Dashboard() {
   const [txns, setTxns] = useState<Txn[]>([])
+  const [retreats, setRetreats] = useState<RetreatWithTransactions[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'summary' | 'retreats'>('summary')
 
   async function load() {
     setLoading(true)
     setError(null)
     try {
-      const { data, error } = await safeQuery<Txn[]>(
+      // Load transactions
+      const { data: txnData, error: txnError } = await safeQuery<Txn[]>(
         () =>
           supabase
             .from('txns')
@@ -47,13 +72,49 @@ export default function Dashboard() {
             .then((r) => r),
         'load txns',
       )
-      if (error) throw error
-      const normalized = (data ?? []).map((txn) => ({
+      if (txnError) throw txnError
+      
+      // Load retreats
+      const { data: retreatsData, error: retreatsError } = await safeQuery<Retreat[]>(
+        () =>
+          supabase
+            .from('retreats')
+            .select('*')
+            .order('start_date', { ascending: false })
+            .then((r) => r),
+        'load retreats',
+      )
+      if (retreatsError) throw retreatsError
+
+      // Process transactions
+      const normalizedTxns = (txnData ?? []).map((txn) => ({
         ...txn,
         is_settlement: Boolean((txn as any).is_settlement),
       })) as Txn[]
-      setTxns(normalized)
+      setTxns(normalizedTxns)
+
+      // Process retreats with their transactions
+      const retreatsWithTxns = (retreatsData ?? []).map((retreat) => {
+        const retreatTxns = normalizedTxns.filter(txn => txn.retreat_id === retreat.id)
+        const income = retreatTxns
+          .filter(txn => txn.type === 'income' || txn.type === 'Ingreso')
+          .reduce((sum, txn) => sum + (Number(txn.amount) || 0), 0)
+        const expense = retreatTxns
+          .filter(txn => txn.type === 'expense' || txn.type === 'Gasto')
+          .reduce((sum, txn) => sum + (Number(txn.amount) || 0), 0)
+        
+        return {
+          ...retreat,
+          transactions: retreatTxns,
+          total: income - expense,
+          income,
+          expense,
+        }
+      })
+      
+      setRetreats(retreatsWithTxns)
     } catch (err: any) {
+      console.error('Error loading data:', err)
       setError(err?.message || 'Failed to load data')
     } finally {
       setLoading(false)
@@ -145,114 +206,193 @@ export default function Dashboard() {
 
   const COLORS = ['#CB6C3E', '#DF8A5C', '#948E78', '#5A645F', '#C8D7D0']
 
-  return (
-    <div>
-      <OfflineBanner />
-      <div className="space-y-6">
-        {/* Currency-separated totals */}
-        {currencyTotals.map(({ currency, ingresos, gastos, balance }) => (
-          <section key={currency} className="space-y-3">
-            <h3 className="text-sm font-semibold text-[rgb(var(--muted))] uppercase tracking-wider">{currency}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="card p-4">
-                <div className="text-xs text-[rgb(var(--muted))]">Ingresos</div>
-                <div className="text-lg font-semibold text-green-400">{formatAmount(ingresos, currency)}</div>
+  const renderRetreatsTab = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold">Retiros</h2>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {retreats.map((retreat) => (
+          <div key={retreat.id} className="rounded-lg border border-gray-200 p-4 shadow-sm dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">{retreat.name}</h3>
+              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                {new Date(retreat.start_date).toLocaleDateString()}
+              </span>
+            </div>
+            <div className="mt-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Ingresos:</span>
+                <span className="font-medium text-green-600">{formatCOP(retreat.income)}</span>
               </div>
-              <div className="card p-4">
-                <div className="text-xs text-[rgb(var(--muted))]">Gastos</div>
-                <div className="text-lg font-semibold text-red-400">{formatAmount(gastos, currency)}</div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500 dark:text-gray-400">Gastos:</span>
+                <span className="font-medium text-red-600">-{formatCOP(retreat.expense)}</span>
               </div>
-              <div className="card p-4">
-                <div className="text-xs text-[rgb(var(--muted))]">Balance</div>
-                <div className={`text-lg font-semibold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {formatAmount(balance, currency)}
-                </div>
+              <div className="flex justify-between border-t border-gray-200 pt-2 dark:border-gray-700">
+                <span className="font-medium">Total:</span>
+                <span className={`font-bold ${retreat.total >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {retreat.total >= 0 ? '+' : ''}{formatCOP(Math.abs(retreat.total))}
+                </span>
               </div>
             </div>
-          </section>
+            <div className="mt-4">
+              <h4 className="mb-2 text-sm font-medium">Transacciones ({retreat.transactions.length})</h4>
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                {retreat.transactions.length > 0 ? (
+                  retreat.transactions.map((txn) => (
+                    <div key={txn.id} className="flex items-center justify-between text-sm">
+                      <span className="truncate">{txn.description || 'Sin descripción'}</span>
+                      <span className={`ml-2 whitespace-nowrap ${(txn.type === 'income' || txn.type === 'Ingreso') ? 'text-green-600' : 'text-red-600'}`}>
+                        {(txn.type === 'income' || txn.type === 'Ingreso') ? '+' : '-'}{formatCOP(txn.amount)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No hay transacciones</p>
+                )}
+              </div>
+            </div>
+          </div>
         ))}
-
-        {/* Spending Over Time Chart */}
-        {spendingOverTime.length > 0 && (
-          <section className="card p-6 space-y-4">
-            <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Tendencia de gastos (últimos 30 días)</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={spendingOverTime}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" />
-                <XAxis dataKey="date" stroke="rgb(var(--muted))" />
-                <YAxis stroke="rgb(var(--muted))" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgb(var(--card))', 
-                    border: '1px solid rgb(var(--border))',
-                    borderRadius: '8px'
-                  }} 
-                />
-                <Legend />
-                <Line type="monotone" dataKey="ingresos" stroke="#10b981" strokeWidth={2} name="Ingresos" />
-                <Line type="monotone" dataKey="gastos" stroke="#ef4444" strokeWidth={2} name="Gastos" />
-              </LineChart>
-            </ResponsiveContainer>
-          </section>
-        )}
-
-        {/* Category Breakdown Pie Chart */}
-        {categoryBreakdown.length > 0 && (
-          <section className="card p-6 space-y-4">
-            <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Top 5 categorías de gastos (COP)</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={categoryBreakdown}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {categoryBreakdown.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'rgb(var(--card))', 
-                    border: '1px solid rgb(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                  formatter={(value: number) => formatAmount(value, 'COP')}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </section>
-        )}
-
-        {error && (
-          <div className="rounded-lg border border-red-400/20 bg-red-500/10 text-red-400 px-4 py-3 text-sm">
-            {error}
+        {retreats.length === 0 && (
+          <div className="col-span-full py-12 text-center">
+            <p className="text-gray-500 dark:text-gray-400">No hay retiros registrados</p>
           </div>
-        )}
-
-        {/* Reload button and status */}
-        <section className="flex justify-between items-center">
-          <div className="text-sm text-[rgb(var(--muted))]">
-            {loading ? 'Cargando...' : `${txns.length} transacciones`}
-          </div>
-          <button onClick={load} disabled={loading} className="btn-primary disabled:opacity-60">
-            {loading ? 'Loading…' : 'Reload'}
-          </button>
-        </section>
-        
-        {loading && txns.length === 0 && (
-          <div className="flex justify-center py-12"><Loader /></div>
-        )}
-        
-        {!loading && txns.length === 0 && !error && (
-          <div className="text-center text-sm text-[rgb(var(--muted))] py-12">No hay transacciones todavía.</div>
         )}
       </div>
+    </div>
+  )
+
+  return (
+    <div className="space-y-8 p-4 md:p-6">
+      <OfflineBanner />
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <div className="flex space-x-2 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+          <button
+            onClick={() => setActiveTab('summary')}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'summary'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            Resumen
+          </button>
+          <button
+            onClick={() => setActiveTab('retreats')}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'retreats'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            Retiros
+          </button>
+        </div>
+      </div>
+      {activeTab === 'summary' ? (
+        <div>
+          {/* Currency-separated totals */}
+          {currencyTotals.map(({ currency, ingresos, gastos, balance }) => (
+            <section key={currency} className="space-y-3">
+              <h3 className="text-sm font-semibold text-[rgb(var(--muted))] uppercase tracking-wider">{currency}</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="card p-4">
+                  <div className="text-xs text-[rgb(var(--muted))]">Ingresos</div>
+                  <div className="text-lg font-semibold text-green-400">{formatAmount(ingresos, currency)}</div>
+                </div>
+                <div className="card p-4">
+                  <div className="text-xs text-[rgb(var(--muted))]">Gastos</div>
+                  <div className="text-lg font-semibold text-red-400">{formatAmount(gastos, currency)}</div>
+                </div>
+                <div className="card p-4">
+                  <div className="text-xs text-[rgb(var(--muted))]">Balance</div>
+                  <div className={`text-lg font-semibold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {formatAmount(balance, currency)}
+                  </div>
+                </div>
+              </div>
+            </section>
+          ))}
+          {/* Spending Over Time Chart */}
+          {spendingOverTime.length > 0 && (
+            <section className="card p-6 space-y-4">
+              <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Tendencia de gastos (últimos 30 días)</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={spendingOverTime}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" />
+                  <XAxis dataKey="date" stroke="rgb(var(--muted))" />
+                  <YAxis stroke="rgb(var(--muted))" />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgb(var(--card))', 
+                      border: '1px solid rgb(var(--border))',
+                      borderRadius: '8px'
+                    }} 
+                  />
+                  <Legend />
+                  <Line type="monotone" dataKey="ingresos" stroke="#10b981" strokeWidth={2} name="Ingresos" />
+                  <Line type="monotone" dataKey="gastos" stroke="#ef4444" strokeWidth={2} name="Gastos" />
+                </LineChart>
+              </ResponsiveContainer>
+            </section>
+          )}
+          {/* Category Breakdown Pie Chart */}
+          {categoryBreakdown.length > 0 && (
+            <section className="card p-6 space-y-4">
+              <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Top 5 categorías de gastos (COP)</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={categoryBreakdown}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {categoryBreakdown.map((_entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgb(var(--card))', 
+                      border: '1px solid rgb(var(--border))',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value: number) => formatAmount(value, 'COP')}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </section>
+          )}
+          {error && (
+            <div className="rounded-lg border border-red-400/20 bg-red-500/10 text-red-400 px-4 py-3 text-sm">
+              {error}
+            </div>
+          )}
+          {/* Reload button and status */}
+          <section className="flex justify-between items-center">
+            <div className="text-sm text-[rgb(var(--muted))]">
+              {loading ? 'Cargando...' : `${txns.length} transacciones`}
+            </div>
+            <button onClick={load} disabled={loading} className="btn-primary disabled:opacity-60">
+              {loading ? 'Loading…' : 'Reload'}
+            </button>
+          </section>
+          {loading && txns.length === 0 && (
+            <div className="flex justify-center py-12"><Loader /></div>
+          )}
+          {!loading && txns.length === 0 && !error && (
+            <div className="text-center text-sm text-[rgb(var(--muted))] py-12">No hay transacciones todavía.</div>
+          )}
+        </div>
+      ) : (
+        renderRetreatsTab()
+      )}
     </div>
   )
 }

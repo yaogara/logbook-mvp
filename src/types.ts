@@ -24,6 +24,7 @@ export type LocalTxn = {
   vertical_id?: string | null
   category_id?: string | null
   contributor_id?: string | null
+  retreat_id?: string | null
   description?: string
   created_at: string
   updated_at: string
@@ -31,6 +32,18 @@ export type LocalTxn = {
   is_settlement?: boolean
   settled?: boolean
   occurred_on?: string
+}
+
+export interface Retreat {
+  id: string
+  name: string
+  start_date: string
+  end_date?: string | null
+  default_vertical_id?: string | null
+  default_category_id?: string | null
+  notes?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface Txn {

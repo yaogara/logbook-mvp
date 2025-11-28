@@ -4,7 +4,7 @@ import type { Contributor } from './db'
 import { normalizeTxnType } from './transactions'
 import { parseCOP } from './money'
 
-const TABLES = ['txns', 'contributors', 'categories', 'verticals'] as const
+const TABLES = ['txns', 'contributors', 'categories', 'verticals', 'retreats'] as const
 const OUTBOX_TABLES = [...TABLES, 'settlement_payments'] as const
 const SYNC_TABLES = [...TABLES, 'settlement_payments'] as const
 
@@ -108,7 +108,11 @@ export async function pushOutbox() {
             const id = row.id // we generate UUIDs locally; send as id
             const client_id = row.id // also set client_id for traceability
             const settled = Boolean(row.settled)
-            
+            const retreat_id =
+              row.retreat_id && typeof row.retreat_id === 'string' && row.retreat_id.trim() !== ''
+                ? row.retreat_id
+                : null
+
             // Generate occurred_on timestamp
             let occurred_on: string
             if (row.date && row.time) {
@@ -132,6 +136,7 @@ export async function pushOutbox() {
               description,
               settled,
               contributor_id: contributor_id ?? null,
+              retreat_id,
             }
 
             payload.is_settlement = Boolean(row.is_settlement)
@@ -159,6 +164,25 @@ export async function pushOutbox() {
             payload = Object.fromEntries(
               Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
             )
+            const fallbackTimestamp = new Date().toISOString()
+            payload.created_at = payload.created_at ?? fallbackTimestamp
+            payload.updated_at = payload.updated_at ?? fallbackTimestamp
+          } else if (table === 'retreats') {
+            const allowed = [
+              'id',
+              'name',
+              'start_date',
+              'end_date',
+              'default_vertical_id',
+              'default_category_id',
+              'notes',
+              'created_at',
+              'updated_at',
+            ] as const
+            payload = Object.fromEntries(
+              Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
+            )
+            payload.user_id = userId
           } else {
             payload = row
           }
@@ -237,6 +261,12 @@ export async function pullSince() {
                   : 0
               normalizedRow.is_settlement = Boolean(normalizedRow.is_settlement)
               normalizedRow.settled = Boolean(normalizedRow.settled)
+            }
+            if (table === 'retreats') {
+              normalizedRow.default_vertical_id = normalizedRow.default_vertical_id ?? null
+              normalizedRow.default_category_id = normalizedRow.default_category_id ?? null
+              normalizedRow.end_date = normalizedRow.end_date ?? null
+              normalizedRow.notes = normalizedRow.notes ?? null
             }
             if (table === 'settlement_payments') {
               const numericAmount =
