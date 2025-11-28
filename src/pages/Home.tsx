@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { OfflineBanner } from '../components/OfflineBanner'
 import { db, queueDelete, queueInsert, queueUpdate, getPreferredContributorId } from '../lib/db'
 import type { LocalTxn, TxnType, Currency, Contributor } from '../types'
@@ -8,6 +8,8 @@ import { normalizeTxn } from '../lib/transactions'
 import useOnlineStatus from '../hooks/useOnlineStatus'
 import MoneyInput from '../components/MoneyInput'
 import { formatCOP } from '../lib/money'
+import RegisterRetreatDialog from '../components/RegisterRetreatDialog'
+import type { RetreatSubmission } from '../components/RegisterRetreatDialog'
 
 function parseTimestamp(value?: string | null) {
   if (!value) return null
@@ -49,6 +51,10 @@ export default function Home() {
   const [editing, setEditing] = useState<LocalTxn | null>(null)
   const [deleting, setDeleting] = useState<LocalTxn | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [retreatDialogOpen, setRetreatDialogOpen] = useState(false)
+  const [retreatSubmitting, setRetreatSubmitting] = useState(false)
+  const [splitMenuOpen, setSplitMenuOpen] = useState(false)
+  const splitButtonRef = useRef<HTMLDivElement | null>(null)
 
   const [amount, setAmount] = useState<number>(0)
   const [type, setType] = useState<TxnType>('expense')
@@ -83,6 +89,27 @@ export default function Home() {
     const timer = window.setTimeout(() => setShowSuccess(false), 2500)
     return () => window.clearTimeout(timer)
   }, [showSuccess])
+
+  useEffect(() => {
+    if (!splitMenuOpen) return
+    function handleClick(event: MouseEvent) {
+      if (!splitButtonRef.current) return
+      if (!splitButtonRef.current.contains(event.target as Node)) {
+        setSplitMenuOpen(false)
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setSplitMenuOpen(false)
+      }
+    }
+    document.addEventListener('click', handleClick)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('click', handleClick)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [splitMenuOpen])
 
   async function loadDropdowns() {
     const [v, c, contrib] = await Promise.all([
@@ -203,6 +230,40 @@ export default function Home() {
       show({ variant: 'error', title: 'No se pudo eliminar', description: String(err?.message || err) })
       // eslint-disable-next-line no-console
       console.error('[delete] failed', err)
+    }
+  }
+
+  async function handleRetreatSubmit(payload: RetreatSubmission) {
+    setRetreatSubmitting(true)
+    try {
+      const txnTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' })
+      const baseDate = payload.retreatDate || new Date().toISOString().split('T')[0]
+      for (const entry of payload.entries) {
+        const entryDescription = [payload.retreatName, entry.description].filter(Boolean).join(' · ')
+        const isSettlement = Boolean(entry.isSettlement)
+        await queueInsert('txns', {
+          amount: entry.amount,
+          type: entry.type,
+          currency: entry.currency ?? 'COP',
+          date: baseDate,
+          time: txnTime,
+          vertical_id: null,
+          category_id: null,
+          contributor_id: entry.contributorId ?? null,
+          description: entryDescription || payload.retreatName,
+          deleted: false,
+          is_settlement: isSettlement,
+        } as any)
+      }
+      await loadRecent()
+      if (online) await fullSync()
+      setRetreatDialogOpen(false)
+      show({ title: 'Retiro registrado', variant: 'success' })
+    } catch (err: any) {
+      show({ title: 'No se pudo registrar el retiro', description: String(err?.message || err), variant: 'error' })
+      throw err
+    } finally {
+      setRetreatSubmitting(false)
     }
   }
 
@@ -359,13 +420,43 @@ export default function Home() {
             </div>
 
             <div className="flex justify-center">
-              <button
-                disabled={saving}
-                type="submit"
-                className="btn-primary w-full md:w-2/3 lg:w-1/2 py-3 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+              <div
+                ref={splitButtonRef}
+                className="relative inline-flex w-full md:w-2/3 lg:w-1/2"
               >
-                {saving ? 'Guardando…' : 'Guardar movimiento'}
-              </button>
+                <button
+                  disabled={saving}
+                  type="submit"
+                  className="btn-primary flex-1 rounded-r-none py-3 text-base font-semibold disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving ? 'Guardando…' : 'Guardar movimiento'}
+                </button>
+                <button
+                  type="button"
+                  aria-label="Abrir opciones de registro"
+                  disabled={saving}
+                  onClick={() => setSplitMenuOpen((prev) => !prev)}
+                  className="btn-primary ml-[1px] flex items-center justify-center rounded-l-none rounded-r-full px-4 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <svg className={`h-4 w-4 transition-transform ${splitMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M6 8l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {splitMenuOpen && (
+                  <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-2 text-sm shadow-xl">
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left font-medium text-[rgb(var(--fg))] transition hover:bg-[rgb(var(--card-hover))]"
+                      onClick={() => {
+                        setSplitMenuOpen(false)
+                        setRetreatDialogOpen(true)
+                      }}
+                    >
+                      Registrar retiro
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </form>
         </section>
@@ -505,26 +596,50 @@ export default function Home() {
       )}
 
       {deleting && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-          <div className="w-full max-w-md rounded-3xl bg-[rgb(var(--card))] p-6 shadow-xl border border-[rgb(var(--border))]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-2xl">
             <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Eliminar movimiento</h3>
-            <p className="mt-2 text-sm text-[rgb(var(--muted))]">¿Seguro que querés eliminar este movimiento? Esta acción no se puede deshacer.</p>
+            <p className="mt-2 text-sm text-[rgb(var(--muted))]">
+              ¿Seguro que querés eliminar este movimiento? Esta acción no se puede deshacer.
+            </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setDeleting(null)} className="btn-muted">Cancelar</button>
-              <button onClick={applyDelete} className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-red-700">Eliminar</button>
+              <button onClick={() => setDeleting(null)} className="btn-muted">
+                Cancelar
+              </button>
+              <button
+                onClick={applyDelete}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-lg transition hover:bg-red-700"
+              >
+                Eliminar
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {showSuccess && (
-        <div className="fixed bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-3 rounded-2xl bg-[rgb(var(--primary))] px-5 py-3 text-sm font-medium text-white shadow-xl shadow-[rgb(var(--primary))]/40 sm:left-auto sm:right-6 sm:translate-x-0">
+        <div className="fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-2xl bg-[rgb(var(--primary))] px-5 py-3 text-sm font-medium text-white shadow-xl shadow-[rgb(var(--primary))]/40 sm:left-auto sm:right-6 sm:translate-x-0">
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6 9 17l-5-5" />
           </svg>
           Movimiento guardado
         </div>
       )}
+
+      <RegisterRetreatDialog
+        open={retreatDialogOpen}
+        onClose={() => {
+          setRetreatDialogOpen(false)
+          setSplitMenuOpen(false)
+        }}
+        onSubmit={handleRetreatSubmit}
+        submitting={retreatSubmitting}
+        contributors={contributors}
+        defaultContributorId={defaultContributorId ?? undefined}
+        verticals={verticals}
+        categories={categories}
+        defaultVerticalId={verticalId || null}
+      />
     </div>
   )
 }
