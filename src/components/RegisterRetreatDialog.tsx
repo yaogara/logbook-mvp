@@ -268,8 +268,11 @@ export default function RegisterRetreatDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8">
-      <div className="w-full max-w-4xl rounded-3xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-4 py-6 sm:py-8">
+      <div
+        className="w-full max-w-4xl overflow-y-auto rounded-3xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-2xl"
+        style={{ maxHeight: 'calc(100vh - 3rem)' }}
+      >
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-[rgb(var(--fg))]">Registrar retiro</h2>
