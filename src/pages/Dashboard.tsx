@@ -418,48 +418,16 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <div className="flex items-center gap-3">
-          <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-            <button
-              onClick={() => setTimeFilter('all')}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                timeFilter === 'all'
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
-            >
-              Todo
-            </button>
-            <button
-              onClick={() => setTimeFilter('week')}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                timeFilter === 'week'
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
-            >
-              Semana
-            </button>
-            <button
-              onClick={() => setTimeFilter('month')}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                timeFilter === 'month'
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
-            >
-              Mes
-            </button>
-            <button
-              onClick={() => setTimeFilter('year')}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                timeFilter === 'year'
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
-            >
-              Año
-            </button>
-          </div>
+          <select
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value as 'all' | 'week' | 'month' | 'year')}
+            className="input min-w-[100px]"
+          >
+            <option value="all">Todo</option>
+            <option value="week">Semana</option>
+            <option value="month">Mes</option>
+            <option value="year">Año</option>
+          </select>
           <div className="flex space-x-2 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
             <button
               onClick={() => setActiveTab('summary')}
@@ -527,10 +495,10 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
+              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center">
+                <div className="text-center flex-1">
                   <div className="text-xs text-[rgb(var(--muted))] mb-1">Ingresos</div>
-                  <div className="text-2xl font-semibold text-green-400">
+                  <div className="text-lg sm:text-xl font-semibold text-green-400 truncate">
                     {displayCurrency === 'COP' 
                       ? formatCOP(totalsWithFx.cop.income)
                       : `$${totalsWithFx.usd.income.toFixed(2)}`
@@ -543,9 +511,9 @@ export default function Dashboard() {
                     }
                   </div>
                 </div>
-                <div className="text-center">
+                <div className="text-center flex-1">
                   <div className="text-xs text-[rgb(var(--muted))] mb-1">Gastos</div>
-                  <div className="text-2xl font-semibold text-red-400">
+                  <div className="text-lg sm:text-xl font-semibold text-red-400 truncate">
                     {displayCurrency === 'COP' 
                       ? formatCOP(totalsWithFx.cop.expense)
                       : `$${totalsWithFx.usd.expense.toFixed(2)}`
@@ -558,9 +526,9 @@ export default function Dashboard() {
                     }
                   </div>
                 </div>
-                <div className="text-center">
+                <div className="text-center flex-1">
                   <div className="text-xs text-[rgb(var(--muted))] mb-1">Balance</div>
-                  <div className={`text-2xl font-semibold ${(displayCurrency === 'COP' ? totalsWithFx.cop.balance : totalsWithFx.usd.balance) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <div className={`text-lg sm:text-xl font-semibold truncate ${(displayCurrency === 'COP' ? totalsWithFx.cop.balance : totalsWithFx.usd.balance) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {displayCurrency === 'COP' 
                       ? formatCOP(Math.abs(totalsWithFx.cop.balance))
                       : `$${Math.abs(totalsWithFx.usd.balance).toFixed(2)}`

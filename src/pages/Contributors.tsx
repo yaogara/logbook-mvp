@@ -59,6 +59,7 @@ export default function Contributors() {
   const [settlingContributorId, setSettlingContributorId] = useState<string | null>(null)
   const [fxSnapshot, setFxSnapshot] = useState<FxSnapshot | null>(null)
   const [fxError, setFxError] = useState<string | null>(null)
+  const [showContributorsForm, setShowContributorsForm] = useState(false)
 
   const sortedContributors = useMemo(
     () =>
@@ -69,6 +70,14 @@ export default function Contributors() {
       }),
     [contributorsList],
   )
+
+  // Filter balances to only show contributors with non-zero balance
+  const balancesWithNonZero = useMemo(() => {
+    return balances.filter(entry => {
+      const net = netBalance(entry, fxSnapshot?.rates)
+      return Math.abs(net) >= 0.01 // Only show if balance is not zero
+    })
+  }, [balances, fxSnapshot])
 
   const refresh = useCallback(
     async (options: { withSync?: boolean } = {}) => {
@@ -308,20 +317,25 @@ export default function Contributors() {
           </div>
         )}
 
-        {loading && balances.length === 0 && (
+        {loading && balancesWithNonZero.length === 0 && (
           <div className="flex justify-center py-12">
             <Loader label="Cargando balances…" />
           </div>
         )}
 
-        {!loading && balances.length === 0 && !error && (
+        {!loading && balancesWithNonZero.length === 0 && !error && (
           <div className="rounded-2xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] py-10 text-center text-sm text-[rgb(var(--muted))]">
-            No hay movimientos registrados para los contribuyentes.
+            No hay balances pendientes para mostrar.
+            {balances.length > 0 && (
+              <span className="block mt-1 text-xs">
+                ({balances.length} contribuyentes con saldo cero están ocultos)
+              </span>
+            )}
           </div>
         )}
 
         <div className="space-y-6">
-          {balances.map((entry) => {
+          {balancesWithNonZero.map((entry) => {
             const net = netBalance(entry, fxSnapshot?.rates)
             const primaryCurrency = entry.breakdowns[0]?.currency || 'COP'
             const tone =
@@ -377,7 +391,7 @@ export default function Contributors() {
                   </p>
                 )}
 
-                <div className="mt-4 space-y-4">
+                <div className={`mt-4 ${entry.breakdowns.length > 1 ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-4'}`}>
                   {entry.breakdowns.map((breakdown) => {
                     const key = `${entry.contributor.id}-${breakdown.currency}`
                     const isExpanded = Boolean(expanded[key])
@@ -464,74 +478,98 @@ export default function Contributors() {
         </div>
 
         <section className="rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Nuevo contribuyente</h3>
-              <p className="text-sm text-[rgb(var(--muted))]">
-                Registra colaboradores externos para asignarles gastos e ingresos.
-              </p>
+          <div 
+            className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded p-2 -m-2 transition-colors"
+            onClick={() => setShowContributorsForm(!showContributorsForm)}
+          >
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Gestión de Contribuyentes</h3>
+                  <p className="text-sm text-[rgb(var(--muted))]">
+                    Agrega nuevos colaboradores y gestiona los existentes
+                  </p>
+                </div>
+                <svg 
+                  className={`h-5 w-5 text-[rgb(var(--muted))] transition-transform ${
+                    showContributorsForm ? 'rotate-180' : ''
+                  }`} 
+                  viewBox="0 0 20 20" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                >
+                  <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
             </div>
-            <form
-              onSubmit={handleCreateContributor}
-              className="flex w-full flex-col gap-3 sm:max-w-sm"
-            >
-              <input
-                type="email"
-                required
-                placeholder="correo@ejemplo.com"
-                value={newContributorEmail}
-                onChange={(e) => setNewContributorEmail(e.target.value)}
-                className="input"
-              />
-              <input
-                type="text"
-                placeholder="Nombre (opcional)"
-                value={newContributorName}
-                onChange={(e) => setNewContributorName(e.target.value)}
-                className="input"
-              />
-              <button
-                type="submit"
-                className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={creatingContributor}
-              >
-                {creatingContributor ? 'Guardando…' : 'Agregar contribuyente'}
-              </button>
-            </form>
           </div>
-        </section>
+          
+          {showContributorsForm && (
+            <div className="mt-6 space-y-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h4 className="text-sm font-medium text-[rgb(var(--fg))] mb-2">Nuevo contribuyente</h4>
+                  <p className="text-xs text-[rgb(var(--muted))] mb-4">
+                    Registra colaboradores externos para asignarles gastos e ingresos.
+                  </p>
+                </div>
+                <form
+                  onSubmit={handleCreateContributor}
+                  className="flex w-full flex-col gap-3 sm:max-w-sm"
+                >
+                  <input
+                    type="email"
+                    required
+                    placeholder="correo@ejemplo.com"
+                    value={newContributorEmail}
+                    onChange={(e) => setNewContributorEmail(e.target.value)}
+                    className="input"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nombre (opcional)"
+                    value={newContributorName}
+                    onChange={(e) => setNewContributorName(e.target.value)}
+                    className="input"
+                  />
+                  <button
+                    type="submit"
+                    className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+                    disabled={creatingContributor}
+                  >
+                    {creatingContributor ? 'Guardando…' : 'Agregar contribuyente'}
+                  </button>
+                </form>
+              </div>
 
-        <section className="rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-sm">
-          <header className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-base font-semibold text-[rgb(var(--fg))]">
-                Contribuyentes registrados
-              </h3>
-              <p className="text-xs text-[rgb(var(--muted))]">
-                {sortedContributors.length} colaboradores sincronizados
-              </p>
+              <div className="border-t border-[rgb(var(--border))] pt-6">
+                <h4 className="text-sm font-medium text-[rgb(var(--fg))] mb-4">
+                  Contribuyentes registrados ({sortedContributors.length})
+                </h4>
+                {sortedContributors.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--card-hover))] px-4 py-3 text-sm text-[rgb(var(--muted))]">
+                    Aún no se registran contribuyentes.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-[rgb(var(--border))]/60 rounded-xl border border-[rgb(var(--border))]/60 bg-[rgb(var(--card-hover))]">
+                    {sortedContributors.map((contributor) => (
+                      <li key={contributor.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-[rgb(var(--fg))]">
+                            {contributor.name?.trim() || contributor.email}
+                          </p>
+                          <p className="text-xs text-[rgb(var(--muted))]">{contributor.email}</p>
+                        </div>
+                        <span className="text-xs text-[rgb(var(--muted))]">
+                          {contributor.auth_user_id ? 'Vinculado a usuario' : 'Externo'}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          </header>
-          {sortedContributors.length === 0 ? (
-            <p className="mt-4 rounded-xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--card-hover))] px-4 py-3 text-sm text-[rgb(var(--muted))]">
-              Aún no se registran contribuyentes.
-            </p>
-          ) : (
-            <ul className="mt-4 divide-y divide-[rgb(var(--border))]/60 rounded-xl border border-[rgb(var(--border))]/60 bg-[rgb(var(--card-hover))]">
-              {sortedContributors.map((contributor) => (
-                <li key={contributor.id} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-[rgb(var(--fg))]">
-                      {contributor.name?.trim() || contributor.email}
-                    </p>
-                    <p className="text-xs text-[rgb(var(--muted))]">{contributor.email}</p>
-                  </div>
-                  <span className="text-xs text-[rgb(var(--muted))]">
-                    {contributor.auth_user_id ? 'Vinculado a usuario' : 'Externo'}
-                  </span>
-                </li>
-              ))}
-            </ul>
           )}
         </section>
       </div>
