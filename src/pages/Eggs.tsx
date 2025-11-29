@@ -241,32 +241,6 @@ export default function Eggs() {
     }
   }
 
-  async function confirmDeleteCollection() {
-    if (!collectionToDelete) return
-    setFeedback(null)
-    try {
-      await deleteCollection(collectionToDelete)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'No se pudo eliminar la recolección'
-      setFeedback(message)
-    } finally {
-      setCollectionToDelete(null)
-    }
-  }
-
-  async function confirmDeleteOutflow() {
-    if (!outflowToDelete) return
-    setFeedback(null)
-    try {
-      await deleteOutflow(outflowToDelete)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'No se pudo eliminar la salida'
-      setFeedback(message)
-    } finally {
-      setOutflowToDelete(null)
-    }
-  }
-
   const collectionEmpty = !loadingCollections && collections.length === 0
 
   return (
