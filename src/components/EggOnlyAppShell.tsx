@@ -5,14 +5,11 @@ import LogoutButton from './LogoutButton'
 import ThemeToggle from './ThemeToggle'
 import useOnlineStatus from '../hooks/useOnlineStatus'
 
-export default function AppShell({ children }: { children: ReactNode }) {
+export default function EggOnlyAppShell({ children }: { children: ReactNode }) {
   const loc = useLocation()
   const online = useOnlineStatus()
-  const isHome = loc.pathname === '/'
-  const isDash = loc.pathname.startsWith('/dashboard')
-  const isHistory = loc.pathname.startsWith('/history')
-  const isContributors = loc.pathname.startsWith('/contributors')
-  const isEggs = loc.pathname.startsWith('/eggs')
+  const isProduction = loc.pathname === '/eggs' && loc.hash === '#production'
+  const isOutflow = loc.pathname === '/eggs' && loc.hash === '#outflow'
 
   return (
     <div
@@ -22,65 +19,32 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <header className="fixed top-0 w-full z-20 bg-[rgb(var(--card))]/80 backdrop-blur border-b border-[rgb(var(--border))] shadow-sm">
         <div className="mx-auto max-w-5xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="text-base font-semibold tracking-tight text-[rgb(var(--fg))]">
-              Yaogará
+            <Link to="/eggs#production" className="text-base font-semibold tracking-tight text-[rgb(var(--fg))]">
+              Yaogará - Huevos
             </Link>
 
-            {/* Desktop Nav */}
+            {/* Egg-only Navigation */}
             <nav className="hidden sm:flex items-center gap-1">
               <Link
-                to="/"
+                to="/eggs#production"
                 className={`px-3 py-1.5 rounded-full text-sm transition ${
-                  isHome
+                  isProduction
                     ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
                     : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
                 }`}
               >
-                Home
+                Producción
               </Link>
 
               <Link
-                to="/history"
+                to="/eggs#outflow"
                 className={`px-3 py-1.5 rounded-full text-sm transition ${
-                  isHistory
+                  isOutflow
                     ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
                     : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
                 }`}
               >
-                Historial
-              </Link>
-
-              <Link
-                to="/dashboard"
-                className={`px-3 py-1.5 rounded-full text-sm transition ${
-                  isDash
-                    ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
-                    : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
-                }`}
-              >
-                Dashboard
-              </Link>
-
-              <Link
-                to="/contributors"
-                className={`px-3 py-1.5 rounded-full text-sm transition ${
-                  isContributors
-                    ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
-                    : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
-                }`}
-              >
-                Balances
-              </Link>
-
-              <Link
-                to="/eggs"
-                className={`px-3 py-1.5 rounded-full text-sm transition ${
-                  isEggs
-                    ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
-                    : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
-                }`}
-              >
-                Huevos
+                Salidas
               </Link>
             </nav>
           </div>
@@ -121,58 +85,25 @@ export default function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="flex items-center justify-around px-2 py-2">
           <Link
-            to="/"
+            to="/eggs#production"
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              isHome
+              isProduction
                 ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
                 : 'text-[rgb(var(--muted))]'
             }`}
           >
-            Home
+            Producción
           </Link>
 
           <Link
-            to="/history"
+            to="/eggs#outflow"
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              isHistory
+              isOutflow
                 ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
                 : 'text-[rgb(var(--muted))]'
             }`}
           >
-            Historial
-          </Link>
-
-          <Link
-            to="/dashboard"
-            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              isDash
-                ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
-                : 'text-[rgb(var(--muted))]'
-            }`}
-          >
-            Dashboard
-          </Link>
-
-          <Link
-            to="/contributors"
-            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              isContributors
-                ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
-                : 'text-[rgb(var(--muted))]'
-            }`}
-          >
-            Balances
-          </Link>
-
-          <Link
-            to="/eggs"
-            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              isEggs
-                ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
-                : 'text-[rgb(var(--muted))]'
-            }`}
-          >
-            Huevos
+            Salidas
           </Link>
         </div>
       </nav>

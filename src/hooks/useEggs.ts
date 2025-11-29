@@ -3,8 +3,8 @@ import { safeQuery, supabase } from '../lib/supabase'
 
 export type EggCollection = {
   id: string
+  created_by: string
   collected_at?: string | null
-  location_id?: string | null
   total_eggs: number
   notes?: string | null
   created_at: string
@@ -12,7 +12,11 @@ export type EggCollection = {
   deleted_at?: string | null
 }
 
-export type EggCollectionInput = Omit<EggCollection, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>
+export type EggCollectionInput = {
+  collected_at?: string | null
+  total_eggs: number
+  notes?: string | null
+}
 
 export type EggOutflow = {
   id: string
@@ -143,7 +147,7 @@ export function useEggCollections() {
 
     const normalized: EggCollectionInput = {
       ...payload,
-      collected_at: toUtcISOString(payload.collected_at ?? undefined, null),
+      collected_at: payload.collected_at ? toUtcISOString(payload.collected_at, null) : undefined,
       total_eggs: Number(payload.total_eggs ?? 0),
     }
 
@@ -262,11 +266,6 @@ export function useEggOutflows() {
     const { data, error } = await supabase
       .from('egg_outflows')
       .insert({ ...normalizedPayload, total_eggs })
-    const total_eggs = computeOutflowTotal(payload)
-    const rest = (({ cartons: _cartons, loose_eggs: _loose, eggs_per_carton: _epc, ...others }) => others)(payload)
-    const { data, error } = await supabase
-      .from('egg_outflows')
-      .insert({ ...rest, total_eggs })
       .select()
       .single()
 
@@ -300,11 +299,6 @@ export function useEggOutflows() {
       const { data, error } = await supabase
         .from('egg_outflows')
         .update({ ...normalizedPayload, total_eggs })
-      const total_eggs = computeOutflowTotal(payload)
-      const rest = (({ cartons: _cartons, loose_eggs: _loose, eggs_per_carton: _epc, ...others }) => others)(payload)
-      const { data, error } = await supabase
-        .from('egg_outflows')
-        .update({ ...rest, total_eggs })
         .eq('id', id)
         .select()
         .single()

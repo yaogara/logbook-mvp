@@ -5,7 +5,6 @@ import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import History from './pages/History'
 import Contributors from './pages/Contributors'
-import EggCollections from './pages/EggCollections'
 import Eggs from './pages/Eggs'
 import { getSupabase } from './lib/supabase'
 import { installConnectivitySync, fullSync } from './lib/sync'
@@ -13,9 +12,10 @@ import './index.css'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Loader from './components/Loader'
 import AppShell from './components/AppShell'
+import EggOnlyAppShell from './components/EggOnlyAppShell'
 import { ToastProvider } from './components/ToastProvider'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
-import { isEggUser } from './lib/permissions'
+import { isAdmin, isEggOnlyUser, isEggUser } from './lib/permissions'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -68,77 +68,98 @@ export default function App() {
     )
   }
 
+  // Determine which shell to use
+  const isUserAdmin = isAdmin(userEmail)
+  const isUserEggOnly = isEggOnlyUser(userEmail)
+  const Shell = isUserEggOnly ? EggOnlyAppShell : AppShell
+
   return (
     <ToastProvider>
-      {/* ⬇️ AppShell wraps the entire app — fixes PWA safe-area + layout */}
-      <AppShell userEmail={userEmail}>
-
+      <Shell>
         <Routes>
           {/* Public Route */}
           <Route path="/login" element={<Auth />} />
 
-          {/* Private Routes */}
-          <Route
-            path="/"
-            element={
-              <Protected authed={authed}>
-                <Home />
-              </Protected>
-            }
-          />
-
-          <Route
-            path="/dashboard"
-            element={
-              <Protected authed={authed}>
-                <Dashboard />
-              </Protected>
-            }
-          />
-
-          <Route
-            path="/history"
-            element={
-              <Protected authed={authed}>
-                <History />
-              </Protected>
-            }
-          />
-
-          <Route
-            path="/eggs"
-            element={
-              <Protected authed={authed}>
-                <EggCollections />
-              </Protected>
-            }
-          />
-
-          <Route
-            path="/contributors"
-            element={
-              <Protected authed={authed}>
-                <Contributors />
-              </Protected>
-            }
-          />
-
-          <Route
-            path="/eggs"
-            element={
-              <Protected authed={authed}>
-                <EggsGate userEmail={userEmail}>
+          {/* Egg-only users - only access eggs page */}
+          {isUserEggOnly && (
+            <Route
+              path="/eggs"
+              element={
+                <Protected authed={authed}>
                   <Eggs />
-                </EggsGate>
-              </Protected>
-            }
-          />
+                </Protected>
+              }
+            />
+          )}
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Admin users - full app access */}
+          {isUserAdmin && (
+            <>
+              <Route
+                path="/"
+                element={
+                  <Protected authed={authed}>
+                    <Home />
+                  </Protected>
+                }
+              />
+
+              <Route
+                path="/dashboard"
+                element={
+                  <Protected authed={authed}>
+                    <Dashboard />
+                  </Protected>
+                }
+              />
+
+              <Route
+                path="/history"
+                element={
+                  <Protected authed={authed}>
+                    <History />
+                  </Protected>
+                }
+              />
+
+              <Route
+                path="/contributors"
+                element={
+                  <Protected authed={authed}>
+                    <Contributors />
+                  </Protected>
+                }
+              />
+
+              <Route
+                path="/eggs"
+                element={
+                  <Protected authed={authed}>
+                    <EggsGate userEmail={userEmail}>
+                      <Eggs />
+                    </EggsGate>
+                  </Protected>
+                }
+              />
+            </>
+          )}
+
+          {/* Redirect egg-only users to eggs page */}
+          {isUserEggOnly && authed && (
+            <Route path="*" element={<Navigate to="/eggs#production" replace />} />
+          )}
+
+          {/* Default redirect for admin users */}
+          {isUserAdmin && authed && (
+            <Route path="*" element={<Navigate to="/" replace />} />
+          )}
+
+          {/* Fallback for unauthenticated users */}
+          {!authed && (
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          )}
         </Routes>
-
-      </AppShell>
+      </Shell>
     </ToastProvider>
   )
 }
