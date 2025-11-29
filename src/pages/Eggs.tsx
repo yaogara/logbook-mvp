@@ -435,9 +435,6 @@ export default function Eggs() {
                 <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">
                   {editingId ? 'Editar salida' : 'Registrar salida'}
                 </h2>
-                <p className="text-sm text-[rgb(var(--muted))]">
-                  Ingresa cartones (x{EGGS_PER_CARTON}) y sueltos. Solo enviaremos el total a la base de datos.
-                </p>
               </div>
               <div className="rounded-lg bg-[rgb(var(--card-hover))] px-3 py-2 text-right">
                 <div className="text-xl font-bold text-[rgb(var(--fg))]">{totalEggs}</div>
@@ -446,7 +443,7 @@ export default function Eggs() {
             </div>
 
             <form className="space-y-4" onSubmit={handleSubmit}>
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 grid-cols-2">
                 <label className="space-y-1 text-sm font-medium text-[rgb(var(--fg))]">
                   Cartones (x{EGGS_PER_CARTON})
                   <input
@@ -506,10 +503,6 @@ export default function Eggs() {
                     Cancelar edición
                   </button>
                 )}
-
-                <p className="text-xs text-[rgb(var(--muted))]">
-                  Se almacena únicamente el campo <code>total_eggs</code>.
-                </p>
               </div>
             </form>
           </section>
