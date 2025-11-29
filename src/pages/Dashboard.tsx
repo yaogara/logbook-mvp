@@ -3,8 +3,8 @@ import { supabase, safeQuery } from '../lib/supabase'
 import Loader from '../components/Loader'
 import { OfflineBanner } from '../components/OfflineBanner'
 import EditRetreatDialog from '../components/EditRetreatDialog'
-import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { formatCOP } from '../lib/money'
+import { ensureFxRates, convertToCOP, type FxSnapshot } from '../lib/fx'
 
 type Txn = {
   id: string
@@ -80,16 +80,24 @@ export default function Dashboard() {
   const [contributors, setContributors] = useState<Contributor[]>([])
   const [verticals, setVerticals] = useState<Vertical[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [fxSnapshot, setFxSnapshot] = useState<FxSnapshot | null>(null)
+  const [displayCurrency, setDisplayCurrency] = useState<'COP' | 'USD'>('COP')
+  const [timeFilter, setTimeFilter] = useState<'all' | 'week' | 'month' | 'year'>('all')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'summary' | 'retreats'>('summary')
   const [editingRetreat, setEditingRetreat] = useState<RetreatWithTransactions | null>(null)
   const [submittingEdit, setSubmittingEdit] = useState(false)
+  const [expandedRetreats, setExpandedRetreats] = useState<Set<string>>(new Set())
 
   async function load() {
     setLoading(true)
     setError(null)
     try {
+      // Load FX rates first
+      const fxData = await ensureFxRates()
+      setFxSnapshot(fxData)
+      
       // Load transactions
       const { data: txnData, error: txnError } = await safeQuery<Txn[]>(
         () =>
@@ -213,10 +221,72 @@ export default function Dashboard() {
 
   const nonSettlementTxns = useMemo(() => txns.filter((txn) => !txn.is_settlement), [txns])
 
+  // Filter transactions by time period
+  const filteredTxns = useMemo(() => {
+    if (timeFilter === 'all') return nonSettlementTxns
+    
+    const now = new Date()
+    const filterDate = new Date()
+    
+    switch (timeFilter) {
+      case 'week':
+        filterDate.setDate(now.getDate() - 7)
+        break
+      case 'month':
+        filterDate.setMonth(now.getMonth() - 1)
+        break
+      case 'year':
+        filterDate.setFullYear(now.getFullYear() - 1)
+        break
+    }
+    
+    return nonSettlementTxns.filter(txn => {
+      const txnDate = txn.occurred_on ? new Date(txn.occurred_on) : new Date(txn.date || '')
+      return txnDate >= filterDate
+    })
+  }, [nonSettlementTxns, timeFilter])
+
+  // Calculate totals with FX conversions
+  const totalsWithFx = useMemo(() => {
+    if (!fxSnapshot) return null
+    
+    let totalIncomeCOP = 0
+    let totalExpenseCOP = 0
+    let totalIncomeUSD = 0
+    let totalExpenseUSD = 0
+    
+    filteredTxns.forEach(txn => {
+      const amount = Number(txn.amount) || 0
+      const normalizedType = txn.type.toLowerCase()
+      
+      if (normalizedType === 'ingreso' || normalizedType === 'income') {
+        totalIncomeCOP += convertToCOP(amount, txn.currency as any, fxSnapshot.rates)
+        totalIncomeUSD += convertToCOP(amount, txn.currency as any, fxSnapshot.rates) / fxSnapshot.rates.USD
+      } else if (normalizedType === 'gasto' || normalizedType === 'expense') {
+        totalExpenseCOP += convertToCOP(amount, txn.currency as any, fxSnapshot.rates)
+        totalExpenseUSD += convertToCOP(amount, txn.currency as any, fxSnapshot.rates) / fxSnapshot.rates.USD
+      }
+    })
+    
+    return {
+      cop: {
+        income: totalIncomeCOP,
+        expense: totalExpenseCOP,
+        balance: totalIncomeCOP - totalExpenseCOP,
+      },
+      usd: {
+        income: totalIncomeUSD,
+        expense: totalExpenseUSD,
+        balance: totalIncomeUSD - totalExpenseUSD,
+      },
+      lastUpdated: fxSnapshot.fetchedAt
+    }
+  }, [filteredTxns, fxSnapshot])
+
   const currencyTotals = useMemo(() => {
     const grouped: Record<string, CurrencyTotals> = {}
     
-    nonSettlementTxns.forEach(txn => {
+    filteredTxns.forEach(txn => {
       const currency = txn.currency || 'COP'
       if (!grouped[currency]) {
         grouped[currency] = { currency, ingresos: 0, gastos: 0, balance: 0 }
@@ -243,54 +313,19 @@ export default function Dashboard() {
       if (b.currency === 'COP') return 1
       return a.currency.localeCompare(b.currency)
     })
-  }, [nonSettlementTxns])
+  }, [filteredTxns])
 
-  // Prepare data for spending over time chart
-  const spendingOverTime = useMemo(() => {
-    const grouped: Record<string, { date: string; ingresos: number; gastos: number }> = {}
-    
-    nonSettlementTxns.forEach(txn => {
-      // Extract date from occurred_on or use date field
-      const date = txn.occurred_on ? new Date(txn.occurred_on).toISOString().slice(0, 10) : (txn as any).date
-      if (!date) return
-      
-      if (!grouped[date]) {
-        grouped[date] = { date, ingresos: 0, gastos: 0 }
+  const toggleRetreatExpanded = (retreatId: string) => {
+    setExpandedRetreats(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(retreatId)) {
+        newSet.delete(retreatId)
+      } else {
+        newSet.add(retreatId)
       }
-      
-      const amount = Number(txn.amount) || 0
-      const normalizedType = txn.type.toLowerCase()
-      if (normalizedType === 'ingreso' || normalizedType === 'income') {
-        grouped[date].ingresos += amount
-      } else if (normalizedType === 'gasto' || normalizedType === 'expense') {
-        grouped[date].gastos += amount
-      }
+      return newSet
     })
-    
-    return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date)).slice(-30) // Last 30 days
-  }, [nonSettlementTxns])
-
-  // Prepare data for category breakdown (COP only for simplicity)
-  const categoryBreakdown = useMemo(() => {
-    const grouped: Record<string, number> = {}
-    
-    nonSettlementTxns.forEach(txn => {
-      if (txn.currency !== 'COP') return // Focus on main currency
-      const normalizedType = txn.type.toLowerCase()
-      if (normalizedType !== 'gasto' && normalizedType !== 'expense') return // Only expenses
-      
-      const category = txn.category_id || 'Sin categoría'
-      const amount = Number(txn.amount) || 0
-      grouped[category] = (grouped[category] || 0) + amount
-    })
-    
-    return Object.entries(grouped)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5) // Top 5 categories
-  }, [nonSettlementTxns])
-
-  const COLORS = ['#CB6C3E', '#DF8A5C', '#948E78', '#5A645F', '#C8D7D0']
+  }
 
   const renderRetreatsTab = () => (
     <div className="space-y-6">
@@ -306,7 +341,7 @@ export default function Dashboard() {
                 </span>
                 <button
                   onClick={() => setEditingRetreat(retreat)}
-                  className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  className="rounded-full border border-transparent p-1.5 text-[rgb(var(--muted))] transition hover:border-blue-500/20 hover:text-blue-400"
                   title="Editar retiro"
                 >
                   <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -332,21 +367,39 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="mt-4">
-              <h4 className="mb-2 text-sm font-medium">Transacciones ({retreat.transactions.length})</h4>
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                {retreat.transactions.length > 0 ? (
-                  retreat.transactions.map((txn) => (
-                    <div key={txn.id} className="flex items-center justify-between text-sm">
-                      <span className="truncate">{txn.description || 'Sin descripción'}</span>
-                      <span className={`ml-2 whitespace-nowrap ${(txn.type === 'income' || txn.type === 'Ingreso') ? 'text-green-600' : 'text-red-600'}`}>
-                        {(txn.type === 'income' || txn.type === 'Ingreso') ? '+' : '-'}{formatCOP(txn.amount)}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No hay transacciones</p>
-                )}
+              <div 
+                className="flex items-center justify-between cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 rounded p-2 -m-2 transition-colors"
+                onClick={() => toggleRetreatExpanded(retreat.id)}
+              >
+                <h4 className="text-sm font-medium">Transacciones ({retreat.transactions.length})</h4>
+                <svg 
+                  className={`h-4 w-4 text-[rgb(var(--muted))] transition-transform ${
+                    expandedRetreats.has(retreat.id) ? 'rotate-180' : ''
+                  }`} 
+                  viewBox="0 0 20 20" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  strokeWidth="2"
+                >
+                  <path d="M19 9l-7 7-7-7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </div>
+              {expandedRetreats.has(retreat.id) && (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2 mt-2">
+                  {retreat.transactions.length > 0 ? (
+                    retreat.transactions.map((txn) => (
+                      <div key={txn.id} className="flex items-center justify-between text-sm">
+                        <span className="truncate">{txn.description || 'Sin descripción'}</span>
+                        <span className={`ml-2 whitespace-nowrap ${(txn.type === 'income' || txn.type === 'Ingreso') ? 'text-green-600' : 'text-red-600'}`}>
+                          {(txn.type === 'income' || txn.type === 'Ingreso') ? '+' : '-'}{formatCOP(txn.amount)}
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No hay transacciones</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -364,31 +417,171 @@ export default function Dashboard() {
       <OfflineBanner />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex space-x-2 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-          <button
-            onClick={() => setActiveTab('summary')}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'summary'
-                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
-          >
-            Resumen
-          </button>
-          <button
-            onClick={() => setActiveTab('retreats')}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'retreats'
-                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-            }`}
-          >
-            Retiros
-          </button>
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+            <button
+              onClick={() => setTimeFilter('all')}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                timeFilter === 'all'
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              Todo
+            </button>
+            <button
+              onClick={() => setTimeFilter('week')}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                timeFilter === 'week'
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              Semana
+            </button>
+            <button
+              onClick={() => setTimeFilter('month')}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                timeFilter === 'month'
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              Mes
+            </button>
+            <button
+              onClick={() => setTimeFilter('year')}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                timeFilter === 'year'
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              Año
+            </button>
+          </div>
+          <div className="flex space-x-2 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+            <button
+              onClick={() => setActiveTab('summary')}
+              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'summary'
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              Resumen
+            </button>
+            <button
+              onClick={() => setActiveTab('retreats')}
+              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === 'retreats'
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+              }`}
+            >
+              Retiros
+            </button>
+          </div>
         </div>
       </div>
       {activeTab === 'summary' ? (
         <div>
+          {/* FX Totals Section */}
+          {totalsWithFx && (
+            <section className="card p-6 space-y-4 mb-8">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-[rgb(var(--fg))]">
+                  Totales (conversión FX)
+                  {timeFilter !== 'all' && (
+                    <span className="text-sm font-normal text-[rgb(var(--muted))] ml-2">
+                      - {timeFilter === 'week' ? 'Última semana' : timeFilter === 'month' ? 'Último mes' : 'Último año'}
+                    </span>
+                  )}
+                </h3>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-[rgb(var(--muted))]">
+                    Actualizado: {new Date(totalsWithFx.lastUpdated).toLocaleDateString()}
+                  </span>
+                  <div className="flex rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
+                    <button
+                      onClick={() => setDisplayCurrency('COP')}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                        displayCurrency === 'COP'
+                          ? 'bg-yellow-400 text-yellow-900 shadow-sm dark:bg-yellow-600 dark:text-yellow-100'
+                          : 'text-gray-500 hover:text-yellow-600 hover:bg-yellow-50 dark:text-gray-400 dark:hover:text-yellow-400'
+                      }`}
+                    >
+                      COP
+                    </button>
+                    <button
+                      onClick={() => setDisplayCurrency('USD')}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                        displayCurrency === 'USD'
+                          ? 'bg-blue-500 text-white shadow-sm dark:bg-blue-600'
+                          : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-400'
+                      }`}
+                    >
+                      USD
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-xs text-[rgb(var(--muted))] mb-1">Ingresos</div>
+                  <div className="text-2xl font-semibold text-green-400">
+                    {displayCurrency === 'COP' 
+                      ? formatCOP(totalsWithFx.cop.income)
+                      : `$${totalsWithFx.usd.income.toFixed(2)}`
+                    }
+                  </div>
+                  <div className="text-xs text-[rgb(var(--muted))] mt-1">
+                    {displayCurrency === 'COP' 
+                      ? `≈ $${(totalsWithFx.cop.income / fxSnapshot!.rates.USD).toFixed(2)} USD`
+                      : `≈ ${formatCOP(totalsWithFx.usd.income * fxSnapshot!.rates.USD)} COP`
+                    }
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-[rgb(var(--muted))] mb-1">Gastos</div>
+                  <div className="text-2xl font-semibold text-red-400">
+                    {displayCurrency === 'COP' 
+                      ? formatCOP(totalsWithFx.cop.expense)
+                      : `$${totalsWithFx.usd.expense.toFixed(2)}`
+                    }
+                  </div>
+                  <div className="text-xs text-[rgb(var(--muted))] mt-1">
+                    {displayCurrency === 'COP' 
+                      ? `≈ $${(totalsWithFx.cop.expense / fxSnapshot!.rates.USD).toFixed(2)} USD`
+                      : `≈ ${formatCOP(totalsWithFx.usd.expense * fxSnapshot!.rates.USD)} COP`
+                    }
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-[rgb(var(--muted))] mb-1">Balance</div>
+                  <div className={`text-2xl font-semibold ${(displayCurrency === 'COP' ? totalsWithFx.cop.balance : totalsWithFx.usd.balance) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {displayCurrency === 'COP' 
+                      ? formatCOP(Math.abs(totalsWithFx.cop.balance))
+                      : `$${Math.abs(totalsWithFx.usd.balance).toFixed(2)}`
+                    }
+                  </div>
+                  <div className="text-xs text-[rgb(var(--muted))] mt-1">
+                    {displayCurrency === 'COP' 
+                      ? `≈ $${(Math.abs(totalsWithFx.cop.balance) / fxSnapshot!.rates.USD).toFixed(2)} USD`
+                      : `≈ ${formatCOP(Math.abs(totalsWithFx.usd.balance) * fxSnapshot!.rates.USD)} COP`
+                    }
+                  </div>
+                </div>
+              </div>
+              
+              <div className="text-xs text-[rgb(var(--muted))] text-center">
+                Tasa: 1 USD = {formatCOP(fxSnapshot!.rates.USD)} 
+                {fxSnapshot!.rates.USD !== 4000 && ` (vs ${formatCOP(4000)} base)`}
+              </div>
+            </section>
+          )}
+          
           {/* Currency-separated totals */}
           {currencyTotals.map(({ currency, ingresos, gastos, balance }) => (
             <section key={currency} className="space-y-3">
@@ -411,61 +604,6 @@ export default function Dashboard() {
               </div>
             </section>
           ))}
-          {/* Spending Over Time Chart */}
-          {spendingOverTime.length > 0 && (
-            <section className="card p-6 space-y-4">
-              <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Tendencia de gastos (últimos 30 días)</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={spendingOverTime}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" />
-                  <XAxis dataKey="date" stroke="rgb(var(--muted))" />
-                  <YAxis stroke="rgb(var(--muted))" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgb(var(--card))', 
-                      border: '1px solid rgb(var(--border))',
-                      borderRadius: '8px'
-                    }} 
-                  />
-                  <Legend />
-                  <Line type="monotone" dataKey="ingresos" stroke="#10b981" strokeWidth={2} name="Ingresos" />
-                  <Line type="monotone" dataKey="gastos" stroke="#ef4444" strokeWidth={2} name="Gastos" />
-                </LineChart>
-              </ResponsiveContainer>
-            </section>
-          )}
-          {/* Category Breakdown Pie Chart */}
-          {categoryBreakdown.length > 0 && (
-            <section className="card p-6 space-y-4">
-              <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Top 5 categorías de gastos (COP)</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={categoryBreakdown}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {categoryBreakdown.map((_entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'rgb(var(--card))', 
-                      border: '1px solid rgb(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: number) => formatAmount(value, 'COP')}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </section>
-          )}
           {error && (
             <div className="rounded-lg border border-red-400/20 bg-red-500/10 text-red-400 px-4 py-3 text-sm">
               {error}
@@ -474,17 +612,25 @@ export default function Dashboard() {
           {/* Reload button and status */}
           <section className="flex justify-between items-center">
             <div className="text-sm text-[rgb(var(--muted))]">
-              {loading ? 'Cargando...' : `${txns.length} transacciones`}
+              {loading ? 'Cargando...' : (
+                <span>
+                  {filteredTxns.length} transacciones
+                  {timeFilter !== 'all' && ` (${timeFilter === 'week' ? 'última semana' : timeFilter === 'month' ? 'último mes' : 'último año'})`}
+                  {timeFilter !== 'all' && ` de ${txns.length} totales`}
+                </span>
+              )}
             </div>
             <button onClick={load} disabled={loading} className="btn-primary disabled:opacity-60">
               {loading ? 'Loading…' : 'Reload'}
             </button>
           </section>
-          {loading && txns.length === 0 && (
+          {loading && filteredTxns.length === 0 && (
             <div className="flex justify-center py-12"><Loader /></div>
           )}
-          {!loading && txns.length === 0 && !error && (
-            <div className="text-center text-sm text-[rgb(var(--muted))] py-12">No hay transacciones todavía.</div>
+          {!loading && filteredTxns.length === 0 && !error && (
+            <div className="text-center text-sm text-[rgb(var(--muted))] py-12">
+              {timeFilter !== 'all' ? `No hay transacciones en el período seleccionado.` : 'No hay transacciones todavía.'}
+            </div>
           )}
         </div>
       ) : (

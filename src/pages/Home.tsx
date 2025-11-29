@@ -378,8 +378,8 @@ export default function Home() {
                     onClick={() => setCurrency('COP')}
                     className={`flex-1 rounded-full px-4 py-3 text-sm font-medium transition ${
                       currency === 'COP'
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                        : 'text-[rgb(var(--muted))] hover:text-blue-600'
+                        ? 'bg-yellow-400 text-yellow-900 shadow-lg shadow-yellow-400/20 dark:bg-yellow-600 dark:text-yellow-100'
+                        : 'text-[rgb(var(--muted))] hover:text-yellow-600 hover:bg-yellow-50 dark:hover:text-yellow-400'
                     }`}
                   >COP</button>
                   <button
@@ -387,8 +387,8 @@ export default function Home() {
                     onClick={() => setCurrency('USD')}
                     className={`flex-1 rounded-full px-4 py-3 text-sm font-medium transition ${
                       currency === 'USD'
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                        : 'text-[rgb(var(--muted))] hover:text-blue-600'
+                        ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20 dark:bg-blue-600'
+                        : 'text-[rgb(var(--muted))] hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400'
                     }`}
                   >USD</button>
                 </div>
