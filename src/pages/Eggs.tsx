@@ -262,27 +262,30 @@ export default function Eggs() {
 
       {/* Stats Card */}
       <div className="card p-4 sm:p-6 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-4">
           {/* Title Section */}
-          <div className="order-2 sm:order-1">
+          <div className="flex-shrink-0">
             <p className="text-sm uppercase tracking-wide text-[rgb(var(--muted))]">Operaciones</p>
             <h1 className="text-xl sm:text-2xl font-bold text-[rgb(var(--fg))]">Huevos</h1>
           </div>
           
           {/* Stats Grid */}
-          <div className="order-1 sm:order-2 grid grid-cols-3 gap-3 sm:gap-6 w-full sm:w-auto">
+          <div className="grid grid-cols-3 gap-2 sm:gap-6 flex-1 min-w-0">
             {/* Current Stock */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Stock</h3>
               <div className={`text-lg sm:text-2xl font-bold ${currentStock < 0 ? 'text-red-500' : 'text-blue-600'} transition-all duration-300 ease-in-out`}>
-                <span className="inline-block animate-pulse">{currentStock}</span>
+                <span className="hidden sm:inline-block animate-pulse">{currentStock}</span>
+                <span className="sm:hidden">{currentStock}</span>
               </div>
-              <div className="text-xs text-[rgb(var(--muted))]">Disponibles</div>
               {currentStock < 0 && (
-                <div className="mt-1 p-1 bg-red-100 dark:bg-red-900/20 rounded inline-block animate-pulse">
-                  <p className="text-xs text-red-700 dark:text-red-300">
-                    ⚠️ Negativo
-                  </p>
+                <div className="mt-1 p-1 bg-red-100 dark:bg-red-900/20 rounded inline-block">
+                  <span className="hidden sm:inline-block animate-pulse">
+                    <p className="text-xs text-red-700 dark:text-red-300">⚠️ Negativo</p>
+                  </span>
+                  <span className="sm:hidden">
+                    <p className="text-xs text-red-700 dark:text-red-300">⚠️</p>
+                  </span>
                 </div>
               )}
             </div>
@@ -291,18 +294,18 @@ export default function Eggs() {
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Producción</h3>
               <div className="text-lg sm:text-2xl font-bold text-green-600 transition-all duration-300 ease-in-out">
-                <span className="inline-block animate-pulse">{weeklyStats.weeklyProduction}</span>
+                <span className="hidden sm:inline-block animate-pulse">{weeklyStats.weeklyProduction}</span>
+                <span className="sm:hidden">{weeklyStats.weeklyProduction}</span>
               </div>
-              <div className="text-xs text-[rgb(var(--muted))]">Esta semana</div>
             </div>
             
             {/* Weekly Outflow */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Salidas</h3>
               <div className="text-lg sm:text-2xl font-bold text-orange-600 transition-all duration-300 ease-in-out">
-                <span className="inline-block animate-pulse">{weeklyStats.weeklyOutflow}</span>
+                <span className="hidden sm:inline-block animate-pulse">{weeklyStats.weeklyOutflow}</span>
+                <span className="sm:hidden">{weeklyStats.weeklyOutflow}</span>
               </div>
-              <div className="text-xs text-[rgb(var(--muted))]">Esta semana</div>
             </div>
           </div>
         </div>

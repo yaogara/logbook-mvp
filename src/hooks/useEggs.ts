@@ -96,20 +96,6 @@ function assertNonNegative(value: number | null | undefined, field: string) {
   }
 }
 
-export function computeOutflowTotal({
-  total_eggs,
-  cartons,
-  loose_eggs,
-  eggs_per_carton = 30,
-}: Pick<EggOutflowInput, 'total_eggs' | 'cartons' | 'loose_eggs' | 'eggs_per_carton'>): number {
-  if (typeof total_eggs === 'number' && Number.isFinite(total_eggs)) {
-    return total_eggs
-  }
-  const cartonsAsEggs = Math.max(0, Number(cartons ?? 0)) * Math.max(0, Number(eggs_per_carton ?? 30))
-  const loose = Math.max(0, Number(loose_eggs ?? 0))
-  return cartonsAsEggs + loose
-}
-
 export function useEggCollections() {
   const [collections, setCollections] = useState<EggCollection[]>([])
   const [loading, setLoading] = useState(false)
