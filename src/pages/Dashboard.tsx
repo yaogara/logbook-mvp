@@ -414,7 +414,7 @@ export default function Dashboard() {
   )
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
+    <div className="space-y-6">
       <OfflineBanner />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -483,7 +483,7 @@ export default function Dashboard() {
                 </div>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center">
+              <div className="flex gap-2 sm:gap-4 sm:gap-6 justify-center">
                 <div className="text-center flex-1">
                   <div className="text-xs text-[rgb(var(--muted))] mb-1">Ingresos</div>
                   <div className="text-lg sm:text-xl font-semibold text-green-400 truncate">
@@ -542,18 +542,18 @@ export default function Dashboard() {
           {currencyTotals.map(({ currency, ingresos, gastos, balance }) => (
             <section key={currency} className="space-y-3">
               <h3 className="text-sm font-semibold text-[rgb(var(--muted))] uppercase tracking-wider">{currency}</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="card p-4">
-                  <div className="text-xs text-[rgb(var(--muted))]">Ingresos</div>
-                  <div className="text-lg font-semibold text-green-400">{formatAmount(ingresos, currency)}</div>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <div className="card p-2 sm:p-4">
+                  <div className="text-[10px] sm:text-xs text-[rgb(var(--muted))]">Ingresos</div>
+                  <div className="text-sm sm:text-lg font-semibold text-green-400">{formatAmount(ingresos, currency)}</div>
                 </div>
-                <div className="card p-4">
-                  <div className="text-xs text-[rgb(var(--muted))]">Gastos</div>
-                  <div className="text-lg font-semibold text-red-400">{formatAmount(gastos, currency)}</div>
+                <div className="card p-2 sm:p-4">
+                  <div className="text-[10px] sm:text-xs text-[rgb(var(--muted))]">Gastos</div>
+                  <div className="text-sm sm:text-lg font-semibold text-red-400">{formatAmount(gastos, currency)}</div>
                 </div>
-                <div className="card p-4">
-                  <div className="text-xs text-[rgb(var(--muted))]">Balance</div>
-                  <div className={`text-lg font-semibold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                <div className="card p-2 sm:p-4">
+                  <div className="text-[10px] sm:text-xs text-[rgb(var(--muted))]">Balance</div>
+                  <div className={`text-sm sm:text-lg font-semibold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatAmount(balance, currency)}
                   </div>
                 </div>
