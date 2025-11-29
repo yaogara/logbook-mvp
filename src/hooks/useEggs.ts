@@ -20,20 +20,19 @@ export type EggCollectionInput = {
 
 export type EggOutflow = {
   id: string
-  delivered_at?: string | null
-  recipient?: string | null
+  created_by: string
+  occurred_at?: string | null
   total_eggs: number
-  cartons?: number | null
-  loose_eggs?: number | null
-  eggs_per_carton?: number | null
   notes?: string | null
   created_at: string
   updated_at: string
   deleted_at?: string | null
 }
 
-export type EggOutflowInput = Omit<EggOutflow, 'id' | 'created_at' | 'updated_at' | 'deleted_at' | 'total_eggs'> & {
-  total_eggs?: number
+export type EggOutflowInput = {
+  occurred_at?: string | null
+  total_eggs: number
+  notes?: string | null
 }
 
 export type EggBalanceRow = {
@@ -246,26 +245,21 @@ export function useEggOutflows() {
   }, [])
 
   const createOutflow = useCallback(async (payload: EggOutflowInput) => {
-    assertNonNegative(payload.cartons, 'cartons')
-    assertNonNegative(payload.loose_eggs, 'loose_eggs')
-    assertNonNegative(payload.eggs_per_carton, 'eggs_per_carton')
-
-    const normalizedPayload: EggOutflowInput = {
-      ...payload,
-      cartons: payload.cartons == null ? null : Math.max(0, Number(payload.cartons)),
-      loose_eggs: payload.loose_eggs == null ? null : Math.max(0, Number(payload.loose_eggs)),
-      eggs_per_carton: payload.eggs_per_carton == null ? null : Math.max(0, Number(payload.eggs_per_carton)),
-      delivered_at: toUtcISOString(payload.delivered_at ?? undefined, null),
+    if (!Number.isFinite(payload.total_eggs) || Number(payload.total_eggs) <= 0) {
+      throw new Error('La cantidad de huevos debe ser un número positivo')
     }
 
-    const total_eggs = computeOutflowTotal(normalizedPayload)
-    if (!Number.isFinite(total_eggs) || total_eggs <= 0) {
-      throw new Error('La salida debe tener al menos un huevo')
+    assertNonNegative(payload.total_eggs, 'total_eggs')
+
+    const normalized: EggOutflowInput = {
+      ...payload,
+      occurred_at: payload.occurred_at ? toUtcISOString(payload.occurred_at, null) : undefined,
+      total_eggs: Number(payload.total_eggs ?? 0),
     }
 
     const { data, error } = await supabase
       .from('egg_outflows')
-      .insert({ ...normalizedPayload, total_eggs })
+      .insert(normalized)
       .select()
       .single()
 
@@ -276,41 +270,33 @@ export function useEggOutflows() {
     return data as EggOutflow
   }, [])
 
-  const updateOutflow = useCallback(
-    async (id: string, payload: Partial<EggOutflowInput>) => {
-      assertNonNegative(payload.cartons, 'cartons')
-      assertNonNegative(payload.loose_eggs, 'loose_eggs')
-      assertNonNegative(payload.eggs_per_carton, 'eggs_per_carton')
-
-      const normalizedPayload: Partial<EggOutflowInput> = {
-        ...payload,
-        cartons: payload.cartons == null ? undefined : Math.max(0, Number(payload.cartons)),
-        loose_eggs: payload.loose_eggs == null ? undefined : Math.max(0, Number(payload.loose_eggs)),
-        eggs_per_carton:
-          payload.eggs_per_carton == null ? undefined : Math.max(0, Number(payload.eggs_per_carton)),
-        delivered_at: toUtcISOString(payload.delivered_at ?? undefined, null),
+  const updateOutflow = useCallback(async (id: string, payload: Partial<EggOutflowInput>) => {
+    if (payload.total_eggs != null) {
+      assertNonNegative(payload.total_eggs, 'total_eggs')
+      if (!Number.isFinite(payload.total_eggs) || Number(payload.total_eggs) <= 0) {
+        throw new Error('La cantidad de huevos debe ser un número positivo')
       }
+    }
 
-      const total_eggs = computeOutflowTotal(normalizedPayload)
-      if (!Number.isFinite(total_eggs) || total_eggs <= 0) {
-        throw new Error('La salida debe tener al menos un huevo')
-      }
+    const normalized: Partial<EggOutflowInput> = {
+      ...payload,
+      occurred_at: payload.occurred_at ? toUtcISOString(payload.occurred_at, null) : undefined,
+      total_eggs: payload.total_eggs == null ? undefined : Number(payload.total_eggs),
+    }
 
-      const { data, error } = await supabase
-        .from('egg_outflows')
-        .update({ ...normalizedPayload, total_eggs })
-        .eq('id', id)
-        .select()
-        .single()
+    const { data, error } = await supabase
+      .from('egg_outflows')
+      .update(normalized)
+      .eq('id', id)
+      .select()
+      .single()
 
-      if (error) throw error
-      if (data) {
-        setOutflows((prev) => prev.map((row) => (row.id === id ? (data as EggOutflow) : row)))
-      }
-      return data as EggOutflow
-    },
-    [],
-  )
+    if (error) throw error
+    if (data) {
+      setOutflows((prev) => prev.map((row) => (row.id === id ? (data as EggOutflow) : row)))
+    }
+    return data as EggOutflow
+  }, [])
 
   const deleteOutflow = useCallback(async (id: string) => {
     const deleted_at = new Date().toISOString()
