@@ -262,6 +262,11 @@ export function useEggOutflows() {
     const { data, error } = await supabase
       .from('egg_outflows')
       .insert({ ...normalizedPayload, total_eggs })
+    const total_eggs = computeOutflowTotal(payload)
+    const rest = (({ cartons: _cartons, loose_eggs: _loose, eggs_per_carton: _epc, ...others }) => others)(payload)
+    const { data, error } = await supabase
+      .from('egg_outflows')
+      .insert({ ...rest, total_eggs })
       .select()
       .single()
 
@@ -295,6 +300,11 @@ export function useEggOutflows() {
       const { data, error } = await supabase
         .from('egg_outflows')
         .update({ ...normalizedPayload, total_eggs })
+      const total_eggs = computeOutflowTotal(payload)
+      const rest = (({ cartons: _cartons, loose_eggs: _loose, eggs_per_carton: _epc, ...others }) => others)(payload)
+      const { data, error } = await supabase
+        .from('egg_outflows')
+        .update({ ...rest, total_eggs })
         .eq('id', id)
         .select()
         .single()
