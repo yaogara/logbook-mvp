@@ -539,27 +539,28 @@ export default function Dashboard() {
           )}
           
           {/* Currency-separated totals */}
-          {currencyTotals.map(({ currency, ingresos, gastos, balance }) => (
-            <section key={currency} className="space-y-3">
-              <h3 className="text-sm font-semibold text-[rgb(var(--muted))] uppercase tracking-wider">{currency}</h3>
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                <div className="card p-2 sm:p-4">
-                  <div className="text-[10px] sm:text-xs text-[rgb(var(--muted))]">Ingresos</div>
-                  <div className="text-sm sm:text-lg font-semibold text-green-400">{formatAmount(ingresos, currency)}</div>
-                </div>
-                <div className="card p-2 sm:p-4">
-                  <div className="text-[10px] sm:text-xs text-[rgb(var(--muted))]">Gastos</div>
-                  <div className="text-sm sm:text-lg font-semibold text-red-400">{formatAmount(gastos, currency)}</div>
-                </div>
-                <div className="card p-2 sm:p-4">
-                  <div className="text-[10px] sm:text-xs text-[rgb(var(--muted))]">Balance</div>
-                  <div className={`text-sm sm:text-lg font-semibold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+          <div className="grid gap-4 sm:gap-6">
+            {currencyTotals.map(({ currency, ingresos, gastos, balance }) => (
+              <div key={currency} className="card p-4 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-[rgb(var(--fg))]">{currency}</h3>
+                  <div className={`text-lg font-bold ${balance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     {formatAmount(balance, currency)}
                   </div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs text-[rgb(var(--muted))] mb-1">Ingresos</div>
+                    <div className="text-lg font-semibold text-green-400">{formatAmount(ingresos, currency)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-[rgb(var(--muted))] mb-1">Gastos</div>
+                    <div className="text-lg font-semibold text-red-400">{formatAmount(gastos, currency)}</div>
+                  </div>
+                </div>
               </div>
-            </section>
-          ))}
+            ))}
+          </div>
           {error && (
             <div className="rounded-lg border border-red-400/20 bg-red-500/10 text-red-400 px-4 py-3 text-sm">
               {error}
