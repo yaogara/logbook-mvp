@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import UserBadge from './UserBadge'
 import LogoutButton from './LogoutButton'
@@ -8,6 +9,7 @@ import useOnlineStatus from '../hooks/useOnlineStatus'
 export default function AppShell({ children }: { children: ReactNode }) {
   const loc = useLocation()
   const online = useOnlineStatus()
+  const [huevosDropdownOpen, setHuevosDropdownOpen] = useState(false)
   const isHome = loc.pathname === '/'
   const isDash = loc.pathname.startsWith('/dashboard')
   const isHistory = loc.pathname.startsWith('/history')
@@ -72,16 +74,49 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 Balances
               </Link>
 
-              <Link
-                to="/eggs"
-                className={`px-3 py-1.5 rounded-full text-sm transition ${
-                  isEggs
-                    ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
-                    : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
-                }`}
-              >
-                Huevos
-              </Link>
+              {/* Huevos Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setHuevosDropdownOpen(!huevosDropdownOpen)}
+                  className={`px-3 py-1.5 rounded-full text-sm transition flex items-center gap-1 ${
+                    isEggs
+                      ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
+                  }`}
+                >
+                  Huevos
+                  <svg className={`w-3 h-3 transition-transform ${huevosDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {huevosDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 bg-[rgb(var(--card))] border border-[rgb(var(--border))] rounded-lg shadow-lg py-1 min-w-[140px] z-50">
+                    <Link
+                      to="/eggs#production"
+                      onClick={() => setHuevosDropdownOpen(false)}
+                      className={`block px-3 py-2 text-sm transition ${
+                        loc.hash === '#production'
+                          ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                          : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))] hover:bg-[rgb(var(--card-hover))]'
+                      }`}
+                    >
+                      Producción
+                    </Link>
+                    <Link
+                      to="/eggs#outflows"
+                      onClick={() => setHuevosDropdownOpen(false)}
+                      className={`block px-3 py-2 text-sm transition ${
+                        loc.hash === '#outflows'
+                          ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                          : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))] hover:bg-[rgb(var(--card-hover))]'
+                      }`}
+                    >
+                      Salidas
+                    </Link>
+                  </div>
+                )}
+              </div>
             </nav>
           </div>
 
@@ -162,17 +197,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
             }`}
           >
             Balances
-          </Link>
-
-          <Link
-            to="/eggs"
-            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-              isEggs
-                ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
-                : 'text-[rgb(var(--muted))]'
-            }`}
-          >
-            Huevos
           </Link>
         </div>
       </nav>

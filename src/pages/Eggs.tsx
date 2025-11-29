@@ -57,7 +57,7 @@ export default function Eggs() {
   
   useEffect(() => {
     const newHash = location.hash.replace('#', '')
-    if (newHash === 'production' || newHash === 'outflow') {
+    if (newHash === 'production' || newHash === 'outflows') {
       setActiveTab(newHash === 'production' ? 'production' : 'outflows')
     }
   }, [location.hash])
