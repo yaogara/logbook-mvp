@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase, safeQuery } from '../lib/supabase'
 import Loader from '../components/Loader'
 import { OfflineBanner } from '../components/OfflineBanner'
+import EditRetreatDialog from '../components/EditRetreatDialog'
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { formatCOP } from '../lib/money'
 
@@ -12,6 +13,7 @@ type Txn = {
   currency: string
   vertical_id?: string | null
   category_id?: string | null
+  contributor_id?: string | null
   description?: string
   occurred_on?: string
   is_settlement?: boolean
@@ -46,6 +48,28 @@ type CurrencyTotals = {
   balance: number
 }
 
+type Contributor = {
+  id: string
+  auth_user_id?: string | null
+  email: string
+  name?: string | null
+  created_at: string
+  updated_at: string
+}
+
+type Vertical = {
+  id: string
+  name: string
+  updated_at: string
+}
+
+type Category = {
+  id: string
+  vertical_id?: string | null
+  name: string
+  updated_at: string
+}
+
 function formatAmount(value: number, currency: string) {
   return `${currency} ${formatCOP(value)}`
 }
@@ -53,9 +77,14 @@ function formatAmount(value: number, currency: string) {
 export default function Dashboard() {
   const [txns, setTxns] = useState<Txn[]>([])
   const [retreats, setRetreats] = useState<RetreatWithTransactions[]>([])
+  const [contributors, setContributors] = useState<Contributor[]>([])
+  const [verticals, setVerticals] = useState<Vertical[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'summary' | 'retreats'>('summary')
+  const [editingRetreat, setEditingRetreat] = useState<RetreatWithTransactions | null>(null)
+  const [submittingEdit, setSubmittingEdit] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -86,6 +115,42 @@ export default function Dashboard() {
       )
       if (retreatsError) throw retreatsError
 
+      // Load contributors
+      const { data: contributorsData, error: contributorsError } = await safeQuery<Contributor[]>(
+        () =>
+          supabase
+            .from('contributors')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .then((r) => r),
+        'load contributors',
+      )
+      if (contributorsError) throw contributorsError
+
+      // Load verticals
+      const { data: verticalsData, error: verticalsError } = await safeQuery<Vertical[]>(
+        () =>
+          supabase
+            .from('verticals')
+            .select('*')
+            .order('name', { ascending: true })
+            .then((r) => r),
+        'load verticals',
+      )
+      if (verticalsError) throw verticalsError
+
+      // Load categories
+      const { data: categoriesData, error: categoriesError } = await safeQuery<Category[]>(
+        () =>
+          supabase
+            .from('categories')
+            .select('*')
+            .order('name', { ascending: true })
+            .then((r) => r),
+        'load categories',
+      )
+      if (categoriesError) throw categoriesError
+
       // Process transactions
       const normalizedTxns = (txnData ?? []).map((txn) => ({
         ...txn,
@@ -113,6 +178,9 @@ export default function Dashboard() {
       }).filter(retreat => retreat.transactions.length > 0 || retreat.income > 0 || retreat.expense > 0) // Filter out empty retreats
       
       setRetreats(retreatsWithTxns)
+      setContributors(contributorsData ?? [])
+      setVerticals(verticalsData ?? [])
+      setCategories(categoriesData ?? [])
     } catch (err: any) {
       console.error('Error loading data:', err)
       setError(err?.message || 'Failed to load data')
@@ -124,6 +192,24 @@ export default function Dashboard() {
   useEffect(() => {
     void load()
   }, [])
+
+  async function handleEditRetreat(update: any) {
+    if (!editingRetreat) return
+    
+    setSubmittingEdit(true)
+    try {
+      // This would need to be implemented to update the retreat and its transactions
+      // For now, just close the dialog and reload data
+      console.log('Updating retreat:', update)
+      await load()
+      setEditingRetreat(null)
+    } catch (err: any) {
+      console.error('Error updating retreat:', err)
+      setError(err?.message || 'Failed to update retreat')
+    } finally {
+      setSubmittingEdit(false)
+    }
+  }
 
   const nonSettlementTxns = useMemo(() => txns.filter((txn) => !txn.is_settlement), [txns])
 
@@ -214,9 +300,20 @@ export default function Dashboard() {
           <div key={retreat.id} className="rounded-lg border border-gray-200 p-4 shadow-sm dark:border-gray-700">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">{retreat.name}</h3>
-              <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-                {new Date(retreat.start_date).toLocaleDateString()}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                  {new Date(retreat.start_date).toLocaleDateString()}
+                </span>
+                <button
+                  onClick={() => setEditingRetreat(retreat)}
+                  className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                  title="Editar retiro"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div className="mt-4 space-y-2">
               <div className="flex justify-between">
@@ -392,6 +489,38 @@ export default function Dashboard() {
         </div>
       ) : (
         renderRetreatsTab()
+      )}
+      
+      {editingRetreat && (
+        <EditRetreatDialog
+          open={!!editingRetreat}
+          onClose={() => setEditingRetreat(null)}
+          onSubmit={handleEditRetreat}
+          submitting={submittingEdit}
+          contributors={contributors}
+          verticals={verticals}
+          categories={categories}
+          retreat={{
+            id: editingRetreat.id,
+            name: editingRetreat.name,
+            start_date: editingRetreat.start_date,
+            end_date: editingRetreat.end_date,
+            default_vertical_id: editingRetreat.default_vertical_id,
+            default_category_id: editingRetreat.default_category_id,
+            description: editingRetreat.notes,
+          }}
+          transactions={editingRetreat.transactions.map(txn => ({
+            id: txn.id,
+            amount: txn.amount,
+            description: txn.description || '',
+            contributorId: txn.contributor_id || null,
+            verticalId: txn.vertical_id || null,
+            categoryId: txn.category_id || null,
+            type: txn.type === 'income' || txn.type === 'Ingreso' ? 'income' : 'expense',
+            isSettlement: txn.is_settlement || false,
+            currency: txn.currency as 'COP' | 'USD' | 'EUR',
+          }))}
+        />
       )}
     </div>
   )

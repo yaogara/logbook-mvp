@@ -14,7 +14,18 @@ type RetreatCategory = {
   vertical_id?: string | null
 }
 
-export type RetreatEntryInput = {
+type Retreat = {
+  id: string
+  name: string
+  start_date: string
+  end_date?: string | null
+  default_vertical_id?: string | null
+  default_category_id?: string | null
+  description?: string | null
+}
+
+type RetreatTransaction = {
+  id: string
   amount: number
   description: string
   contributorId: string | null
@@ -25,10 +36,10 @@ export type RetreatEntryInput = {
   currency?: Currency
 }
 
-export type RetreatSubmission = {
+export type RetreatUpdate = {
   retreatName: string
   retreatDate: string
-  entries: RetreatEntryInput[]
+  entries: RetreatTransaction[]
 }
 
 type RetreatRowState = {
@@ -39,6 +50,8 @@ type RetreatRowState = {
   verticalId: string | null
   categoryId: string | null
   isSettlement: boolean
+  isNew?: boolean
+  toDelete?: boolean
 }
 
 type SectionType = 'income' | 'expense'
@@ -46,13 +59,13 @@ type SectionType = 'income' | 'expense'
 type Props = {
   open: boolean
   onClose: () => void
-  onSubmit: (payload: RetreatSubmission) => Promise<void>
+  onSubmit: (payload: RetreatUpdate) => Promise<void>
   submitting?: boolean
   contributors: Contributor[]
-  defaultContributorId?: string | null
   verticals: RetreatVertical[]
   categories: RetreatCategory[]
-  defaultVerticalId?: string | null
+  retreat: Retreat
+  transactions: RetreatTransaction[]
 }
 
 function generateRowId() {
@@ -62,44 +75,73 @@ function generateRowId() {
   return `row_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
-function createRow(defaultContributorId?: string | null, defaultVerticalId?: string | null): RetreatRowState {
+function createRow(): RetreatRowState {
   return {
     id: generateRowId(),
     amount: 0,
     description: '',
-    contributorId: defaultContributorId ?? null,
-    verticalId: defaultVerticalId ?? null,
+    contributorId: null,
+    verticalId: null,
     categoryId: null,
     isSettlement: false,
+    isNew: true,
   }
 }
 
-export default function RegisterRetreatDialog({
+export default function EditRetreatDialog({
   open,
   onClose,
   onSubmit,
   submitting = false,
   contributors,
-  defaultContributorId,
   verticals,
   categories,
-  defaultVerticalId,
+  retreat,
+  transactions,
 }: Props) {
-  const today = () => new Date().toISOString().split('T')[0]
-  const [retreatName, setRetreatName] = useState('')
-  const [retreatDate, setRetreatDate] = useState(today())
-  const [incomeRows, setIncomeRows] = useState<RetreatRowState[]>(() => [createRow(defaultContributorId, defaultVerticalId)])
-  const [expenseRows, setExpenseRows] = useState<RetreatRowState[]>(() => [createRow(defaultContributorId, defaultVerticalId)])
+  const [retreatName, setRetreatName] = useState(retreat.name)
+  const [retreatDate, setRetreatDate] = useState(retreat.start_date)
+  const [incomeRows, setIncomeRows] = useState<RetreatRowState[]>([])
+  const [expenseRows, setExpenseRows] = useState<RetreatRowState[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
-    setRetreatName('')
-    setRetreatDate(today())
-    setIncomeRows([createRow(defaultContributorId, defaultVerticalId)])
-    setExpenseRows([createRow(defaultContributorId, defaultVerticalId)])
+    
+    const income = transactions
+      .filter(txn => txn.type === 'income')
+      .map(txn => ({
+        id: txn.id,
+        amount: txn.amount,
+        description: txn.description,
+        contributorId: txn.contributorId,
+        verticalId: txn.verticalId,
+        categoryId: txn.categoryId,
+        isSettlement: txn.isSettlement || false,
+        isNew: false,
+        toDelete: false,
+      }))
+
+    const expense = transactions
+      .filter(txn => txn.type === 'expense')
+      .map(txn => ({
+        id: txn.id,
+        amount: txn.amount,
+        description: txn.description,
+        contributorId: txn.contributorId,
+        verticalId: txn.verticalId,
+        categoryId: txn.categoryId,
+        isSettlement: txn.isSettlement || false,
+        isNew: false,
+        toDelete: false,
+      }))
+
+    setIncomeRows(income.length > 0 ? income : [createRow()])
+    setExpenseRows(expense.length > 0 ? expense : [createRow()])
+    setRetreatName(retreat.name)
+    setRetreatDate(retreat.start_date)
     setError(null)
-  }, [open, defaultContributorId, defaultVerticalId])
+  }, [open, retreat, transactions])
 
   const contributorOptions = useMemo(
     () =>
@@ -107,15 +149,22 @@ export default function RegisterRetreatDialog({
     [contributors],
   )
 
-  const incomeTotal = useMemo(() => incomeRows.reduce((sum, row) => sum + (row.amount || 0), 0), [incomeRows])
-  const expenseTotal = useMemo(() => expenseRows.reduce((sum, row) => sum + (row.amount || 0), 0), [expenseRows])
+  const incomeTotal = useMemo(() => 
+    incomeRows.filter(row => !row.toDelete).reduce((sum, row) => sum + (row.amount || 0), 0), 
+    [incomeRows]
+  )
+  const expenseTotal = useMemo(() => 
+    expenseRows.filter(row => !row.toDelete).reduce((sum, row) => sum + (row.amount || 0), 0), 
+    [expenseRows]
+  )
   const netTotal = incomeTotal - expenseTotal
 
   const validEntries = useMemo(() => {
-    const buildEntries = (rows: RetreatRowState[], type: SectionType): RetreatEntryInput[] =>
+    const buildEntries = (rows: RetreatRowState[], type: SectionType): RetreatTransaction[] =>
       rows
-        .filter((row) => row.amount > 0)
+        .filter((row) => !row.toDelete && row.amount > 0)
         .map((row) => ({
+          id: row.isNew ? generateRowId() : row.id,
           amount: row.amount,
           description: row.description.trim(),
           contributorId: row.contributorId || null,
@@ -137,12 +186,19 @@ export default function RegisterRetreatDialog({
 
   function removeRow(section: SectionType, rowId: string) {
     const updater = section === 'income' ? setIncomeRows : setExpenseRows
-    updater((rows) => rows.filter((row) => row.id !== rowId))
+    updater((rows) => {
+      const row = rows.find(r => r.id === rowId)
+      if (row?.isNew) {
+        return rows.filter((row) => row.id !== rowId)
+      } else {
+        return rows.map((row) => (row.id === rowId ? { ...row, toDelete: true } : row))
+      }
+    })
   }
 
   function addRow(section: SectionType) {
     const updater = section === 'income' ? setIncomeRows : setExpenseRows
-    updater((rows) => [...rows, createRow(defaultContributorId, defaultVerticalId)])
+    updater((rows) => [...rows, createRow()])
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -156,7 +212,7 @@ export default function RegisterRetreatDialog({
         entries: validEntries,
       })
     } catch (err: any) {
-      setError(err?.message || 'No se pudo registrar el retiro. Intentalo de nuevo.')
+      setError(err?.message || 'No se pudo actualizar el retiro. Intentalo de nuevo.')
     }
   }
 
@@ -167,19 +223,14 @@ export default function RegisterRetreatDialog({
   }
 
   function renderRow(row: RetreatRowState, section: SectionType) {
+    if (row.toDelete) return null
+    
     return (
       <div
         key={row.id}
-        className="grid grid-cols-1 gap-2 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] p-3"
+        className="grid grid-cols-1 gap-3 rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] p-4"
       >
-        {/* First row: Description and Amount (50/50) */}
-        <div className="grid grid-cols-2 gap-2">
-          <MoneyInput
-            value={row.amount}
-            onChange={(value) => handleRowChange(section, row.id, { amount: value })}
-            className="w-full"
-            placeholder="0"
-          />
+        <div className="grid gap-3 md:grid-cols-2">
           <input
             type="text"
             value={row.description}
@@ -188,83 +239,85 @@ export default function RegisterRetreatDialog({
             placeholder={section === 'income' ? 'Descripción del ingreso' : 'Descripción del gasto'}
             disabled={submitting}
           />
+          <MoneyInput
+            value={row.amount}
+            onChange={(value) => handleRowChange(section, row.id, { amount: value })}
+            className="w-full"
+            placeholder="0"
+          />
         </div>
-        
-        {/* Second row: Contributor, Vertical+Category, Saldo, Delete */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid gap-3 md:grid-cols-2">
+          <select
+            value={row.verticalId ?? ''}
+            onChange={(event) =>
+              handleRowChange(section, row.id, {
+                verticalId: event.target.value || null,
+                categoryId: null,
+              })
+            }
+            className="input w-full"
+            disabled={submitting}
+          >
+            <option value="">Sin vertical</option>
+            {verticals
+              .slice()
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((vertical) => (
+                <option key={vertical.id} value={vertical.id}>
+                  {vertical.name}
+                </option>
+              ))}
+          </select>
+          <select
+            value={row.categoryId ?? ''}
+            onChange={(event) => handleRowChange(section, row.id, { categoryId: event.target.value || null })}
+            className="input w-full"
+            disabled={submitting}
+          >
+            <option value="">Sin categoría</option>
+            {getFilteredCategories(row.verticalId).map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-3 md:grid-cols-[2fr_1fr] md:items-center">
           <select
             value={row.contributorId ?? ''}
             onChange={(event) => handleRowChange(section, row.id, { contributorId: event.target.value || null })}
-            className="input min-w-[120px]"
+            className="input w-full"
             disabled={submitting}
           >
-            <option value="">Colaborador</option>
+            <option value="">Sin colaborador</option>
             {contributorOptions.map((contributor) => (
               <option key={contributor.id} value={contributor.id}>
                 {contributor.name || contributor.email}
               </option>
             ))}
           </select>
-          
-          <div className="flex gap-1">
-            <select
-              value={row.verticalId ?? ''}
-              onChange={(event) =>
-                handleRowChange(section, row.id, {
-                  verticalId: event.target.value || null,
-                  categoryId: null,
-                })
-              }
-              className="input min-w-[80px]"
+          <div className="flex items-center justify-between gap-2">
+            <label className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
+              <input
+                type="checkbox"
+                checked={row.isSettlement}
+                onChange={(event) => handleRowChange(section, row.id, { isSettlement: event.target.checked })}
+                disabled={submitting}
+              />
+              Saldo
+            </label>
+            <button
+              type="button"
+              onClick={() => removeRow(section, row.id)}
+              className="rounded-full border border-transparent p-2 text-[rgb(var(--muted))] transition hover:border-red-500/20 hover:text-red-400"
               disabled={submitting}
             >
-              <option value="">Vertical</option>
-              {verticals
-                .slice()
-                .sort((a, b) => a.name.localeCompare(b.name))
-                .map((vertical) => (
-                  <option key={vertical.id} value={vertical.id}>
-                    {vertical.name}
-                  </option>
-                ))}
-            </select>
-            
-            <select
-              value={row.categoryId ?? ''}
-              onChange={(event) => handleRowChange(section, row.id, { categoryId: event.target.value || null })}
-              className="input min-w-[80px]"
-              disabled={submitting}
-            >
-              <option value="">Categoría</option>
-              {getFilteredCategories(row.verticalId).map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+              <span className="sr-only">Quitar fila</span>
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </div>
-          
-          <label className="flex items-center gap-1 text-xs text-[rgb(var(--muted))]">
-            <input
-              type="checkbox"
-              checked={row.isSettlement}
-              onChange={(event) => handleRowChange(section, row.id, { isSettlement: event.target.checked })}
-              disabled={submitting}
-            />
-            Saldo
-          </label>
-          
-          <button
-            type="button"
-            onClick={() => removeRow(section, row.id)}
-            className="rounded-full border border-transparent p-1.5 text-[rgb(var(--muted))] transition hover:border-red-500/20 hover:text-red-400 ml-auto"
-            disabled={submitting}
-          >
-            <span className="sr-only">Quitar fila</span>
-            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M6 6l8 8M14 6l-8 8" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
         </div>
       </div>
     )
@@ -280,8 +333,8 @@ export default function RegisterRetreatDialog({
       >
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-[rgb(var(--fg))]">Registrar retiro</h2>
-            <p className="text-sm text-[rgb(var(--muted))]">Cargá todos los ingresos y gastos del retiro en un solo paso.</p>
+            <h2 className="text-xl font-semibold text-[rgb(var(--fg))]">Editar retiro</h2>
+            <p className="text-sm text-[rgb(var(--muted))]">Modifica los ingresos y gastos del retiro.</p>
           </div>
           <button
             type="button"
@@ -316,7 +369,6 @@ export default function RegisterRetreatDialog({
                 value={retreatDate}
                 onChange={(event) => setRetreatDate(event.target.value)}
                 className="input mt-1"
-                max={today()}
                 disabled={submitting}
               />
             </div>
@@ -331,7 +383,7 @@ export default function RegisterRetreatDialog({
               <span className="text-sm font-semibold text-emerald-500">+ COP {formatCOP(incomeTotal)}</span>
             </div>
             <div className="space-y-3">
-              {incomeRows.length === 0 && (
+              {incomeRows.filter(row => !row.toDelete).length === 0 && (
                 <div className="rounded-2xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--card))] p-4 text-sm text-[rgb(var(--muted))]">
                   Aún no agregaste ingresos.
                 </div>
@@ -357,7 +409,7 @@ export default function RegisterRetreatDialog({
               <span className="text-sm font-semibold text-rose-500">- COP {formatCOP(expenseTotal)}</span>
             </div>
             <div className="space-y-3">
-              {expenseRows.length === 0 && (
+              {expenseRows.filter(row => !row.toDelete).length === 0 && (
                 <div className="rounded-2xl border border-dashed border-[rgb(var(--border))] bg-[rgb(var(--card))] p-4 text-sm text-[rgb(var(--muted))]">
                   Aún no agregaste gastos.
                 </div>
@@ -400,7 +452,7 @@ export default function RegisterRetreatDialog({
               Cancelar
             </button>
             <button type="submit" className="btn-primary" disabled={!canSubmit}>
-              {submitting ? 'Guardando…' : 'Registrar retiro'}
+              {submitting ? 'Guardando…' : 'Actualizar retiro'}
             </button>
           </div>
         </form>
