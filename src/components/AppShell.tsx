@@ -1,17 +1,20 @@
 import type { ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { isEggUser } from '../lib/permissions'
 import UserBadge from './UserBadge'
 import LogoutButton from './LogoutButton'
 import ThemeToggle from './ThemeToggle'
 import useOnlineStatus from '../hooks/useOnlineStatus'
 
-export default function AppShell({ children }: { children: ReactNode }) {
+export default function AppShell({ children, userEmail }: { children: ReactNode; userEmail: string | null }) {
   const loc = useLocation()
   const online = useOnlineStatus()
   const isHome = loc.pathname === '/'
   const isDash = loc.pathname.startsWith('/dashboard')
   const isHistory = loc.pathname.startsWith('/history')
   const isContributors = loc.pathname.startsWith('/contributors')
+  const isEggs = loc.pathname.startsWith('/eggs')
+  const canSeeEggs = isEggUser(userEmail)
 
   return (
     <div
@@ -70,6 +73,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
               >
                 Balances
               </Link>
+
+              {canSeeEggs && (
+                <Link
+                  to="/eggs"
+                  className={`px-3 py-1.5 rounded-full text-sm transition ${
+                    isEggs
+                      ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                      : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
+                  }`}
+                >
+                  Huevos
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -151,6 +167,19 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             Balances
           </Link>
+
+          {canSeeEggs && (
+            <Link
+              to="/eggs"
+              className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                isEggs
+                  ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                  : 'text-[rgb(var(--muted))]'
+              }`}
+            >
+              Huevos
+            </Link>
+          )}
         </div>
       </nav>
     </div>
