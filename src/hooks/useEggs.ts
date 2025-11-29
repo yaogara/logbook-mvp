@@ -180,9 +180,10 @@ export function useEggOutflows() {
 
   const createOutflow = useCallback(async (payload: EggOutflowInput) => {
     const total_eggs = computeOutflowTotal(payload)
+    const rest = (({ cartons: _cartons, loose_eggs: _loose, eggs_per_carton: _epc, ...others }) => others)(payload)
     const { data, error } = await supabase
       .from('egg_outflows')
-      .insert({ ...payload, total_eggs })
+      .insert({ ...rest, total_eggs })
       .select()
       .single()
 
@@ -196,9 +197,10 @@ export function useEggOutflows() {
   const updateOutflow = useCallback(
     async (id: string, payload: Partial<EggOutflowInput>) => {
       const total_eggs = computeOutflowTotal(payload)
+      const rest = (({ cartons: _cartons, loose_eggs: _loose, eggs_per_carton: _epc, ...others }) => others)(payload)
       const { data, error } = await supabase
         .from('egg_outflows')
-        .update({ ...payload, total_eggs })
+        .update({ ...rest, total_eggs })
         .eq('id', id)
         .select()
         .single()
