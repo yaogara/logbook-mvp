@@ -436,7 +436,7 @@ export default function Dashboard() {
           >
             <option value="summary">Resumen</option>
             <option value="retreats">Retiros</option>
-            <option value="eggStats">Estadísticas de Huevos</option>
+            <option value="eggStats">Huevos</option>
           </select>
         </div>
       </div>
@@ -566,7 +566,7 @@ export default function Dashboard() {
             </div>
           )}
           {/* Reload button and status */}
-          <section className="flex justify-between items-center">
+          <section className="flex justify-between items-center mt-8">
             <div className="text-sm text-[rgb(var(--muted))]">
               {loading ? 'Cargando...' : (
                 <span>
