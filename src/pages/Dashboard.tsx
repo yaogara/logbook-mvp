@@ -5,12 +5,7 @@ import { OfflineBanner } from '../components/OfflineBanner'
 import EditRetreatDialog from '../components/EditRetreatDialog'
 import { formatCOP } from '../lib/money'
 import { ensureFxRates, convertToCOP, type FxSnapshot } from '../lib/fx'
-import {
-  fetchEggBalances,
-  fetchEggMonthlyStats,
-  type EggBalanceRow,
-  type EggMonthlyStat,
-} from '../hooks/useEggs'
+import EggStats from './EggStats'
 
 type Txn = {
   id: string
@@ -91,14 +86,10 @@ export default function Dashboard() {
   const [timeFilter, setTimeFilter] = useState<'all' | 'week' | 'month' | 'year'>('all')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'summary' | 'retreats'>('summary')
+  const [activeTab, setActiveTab] = useState<'summary' | 'retreats' | 'eggStats'>('summary')
   const [editingRetreat, setEditingRetreat] = useState<RetreatWithTransactions | null>(null)
   const [submittingEdit, setSubmittingEdit] = useState(false)
   const [expandedRetreats, setExpandedRetreats] = useState<Set<string>>(new Set())
-  const [eggBalances, setEggBalances] = useState<EggBalanceRow[]>([])
-  const [eggMonthlyStats, setEggMonthlyStats] = useState<EggMonthlyStat[]>([])
-  const [eggLoading, setEggLoading] = useState(false)
-  const [eggError, setEggError] = useState<string | null>(null)
 
   async function load() {
     setLoading(true)
@@ -207,31 +198,8 @@ export default function Dashboard() {
     }
   }
 
-  async function loadEggData() {
-    setEggLoading(true)
-    setEggError(null)
-    try {
-      const [balances, monthlyStats] = await Promise.all([
-        fetchEggBalances(),
-        fetchEggMonthlyStats(),
-      ])
-
-      setEggBalances(balances)
-      setEggMonthlyStats(monthlyStats)
-    } catch (err: any) {
-      console.error('Error loading egg data:', err)
-      setEggError(err?.message || 'Failed to load egg data')
-    } finally {
-      setEggLoading(false)
-    }
-  }
-
   useEffect(() => {
     void load()
-  }, [])
-
-  useEffect(() => {
-    void loadEggData()
   }, [])
 
   async function handleEditRetreat(update: any) {
@@ -348,81 +316,6 @@ export default function Dashboard() {
     })
   }, [filteredTxns])
 
-  const eggSummary = useMemo(
-    () =>
-      eggBalances.reduce(
-        (acc, row) => ({
-          balance: acc.balance + Number(row.total_eggs ?? 0),
-          production: acc.production + Number(row.collected_eggs ?? 0),
-          outflow: acc.outflow + Number(row.outflow_eggs ?? 0),
-        }),
-        { balance: 0, production: 0, outflow: 0 },
-      ),
-    [eggBalances],
-  )
-
-  const eggLastUpdated = useMemo(() => {
-    const timestamps = eggBalances
-      .map((row) => (row.updated_at ? new Date(row.updated_at).getTime() : 0))
-      .filter((timestamp) => Number.isFinite(timestamp))
-    if (!timestamps.length) return null
-    const latest = Math.max(...timestamps)
-    return Number.isFinite(latest) ? new Date(latest) : null
-  }, [eggBalances])
-
-  const aggregatedMonthlyStats = useMemo(() => {
-    const grouped = new Map<
-      string,
-      { monthKey: string; production: number; outflow: number; net: number }
-    >()
-
-    eggMonthlyStats.forEach((stat) => {
-      const monthKey = (stat.month ?? '').slice(0, 7) || 'Desconocido'
-      const production = Number(stat.collected_eggs ?? 0)
-      const outflow = Number(stat.outflow_eggs ?? 0)
-      const netValue =
-        typeof stat.net_eggs === 'number' ? Number(stat.net_eggs) : production - outflow
-
-      const existing = grouped.get(monthKey)
-      if (existing) {
-        existing.production += production
-        existing.outflow += outflow
-        existing.net += netValue
-      } else {
-        grouped.set(monthKey, {
-          monthKey,
-          production,
-          outflow,
-          net: netValue,
-        })
-      }
-    })
-
-    return Array.from(grouped.values()).sort((a, b) => {
-      const aDate = new Date(`${a.monthKey}-01`).getTime()
-      const bDate = new Date(`${b.monthKey}-01`).getTime()
-      if (Number.isNaN(aDate) || Number.isNaN(bDate)) return b.monthKey.localeCompare(a.monthKey)
-      return bDate - aDate
-    })
-  }, [eggMonthlyStats])
-
-  const maxEggValue = useMemo(() => {
-    const values = aggregatedMonthlyStats.flatMap((stat) => [
-      stat.production,
-      stat.outflow,
-      Math.abs(stat.net),
-    ])
-    const max = Math.max(...values, 0)
-    return max || 1
-  }, [aggregatedMonthlyStats])
-
-  const formatMonthLabel = (monthKey: string) => {
-    const normalized = monthKey.length === 7 ? `${monthKey}-01` : monthKey
-    const parsed = new Date(normalized)
-    if (Number.isNaN(parsed.getTime())) return monthKey || 'Mes'
-    return parsed.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
-  }
-
   const toggleRetreatExpanded = (retreatId: string) => {
     setExpandedRetreats(prev => {
       const newSet = new Set(prev)
@@ -528,225 +421,27 @@ export default function Dashboard() {
         <div className="flex items-center gap-3">
           <select
             value={timeFilter}
-            onChange={(e) => setTimeFilter(e.target.value as 'all' | 'week' | 'month' | 'year')}
-            className="input min-w-[100px]"
+            onChange={(e) => setTimeFilter(e.target.value as any)}
+            className="rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-3 py-2 text-sm text-[rgb(var(--fg))] shadow-sm"
           >
             <option value="all">Todo</option>
             <option value="week">Semana</option>
             <option value="month">Mes</option>
             <option value="year">Año</option>
           </select>
-          <div className="flex space-x-2 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
-            <button
-              onClick={() => setActiveTab('summary')}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'summary'
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
-            >
-              Resumen
-            </button>
-            <button
-              onClick={() => setActiveTab('retreats')}
-              className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === 'retreats'
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-              }`}
-            >
-              Retiros
-            </button>
-          </div>
+          <select
+            value={activeTab}
+            onChange={(e) => setActiveTab(e.target.value as any)}
+            className="rounded-md border border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-3 py-2 text-sm text-[rgb(var(--fg))] shadow-sm"
+          >
+            <option value="summary">Resumen</option>
+            <option value="retreats">Retiros</option>
+            <option value="eggStats">Estadísticas de Huevos</option>
+          </select>
         </div>
       </div>
       {activeTab === 'summary' ? (
         <div>
-          <section className="card p-6 space-y-4 mb-8">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">Huevos</p>
-                <h3 className="text-lg font-semibold text-[rgb(var(--fg))]">
-                  Balance y última semana
-                </h3>
-                <p className="text-sm text-[rgb(var(--muted))]">
-                  Datos consolidados de producción y entregas (últimos 7 días).
-                </p>
-              </div>
-              <a
-                href="/eggs"
-                className="text-sm font-medium text-blue-500 hover:text-blue-400"
-              >
-                Ver detalles
-              </a>
-            </div>
-
-            {eggError && (
-              <div className="rounded-md border border-red-400/50 bg-red-500/10 px-4 py-3 text-sm text-red-500">
-                {eggError}
-              </div>
-            )}
-
-            {eggLoading ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="card p-4 animate-pulse">
-                    <div className="h-3 w-24 rounded bg-[rgb(var(--card-hover))]"></div>
-                    <div className="mt-3 h-6 w-16 rounded bg-[rgb(var(--card-hover))]"></div>
-                    <div className="mt-2 h-3 w-20 rounded bg-[rgb(var(--card-hover))]"></div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div className="rounded-lg bg-[rgb(var(--card-hover))] p-4">
-                  <p className="text-xs text-[rgb(var(--muted))]">Balance actual</p>
-                  <p className="text-2xl font-bold text-[rgb(var(--fg))]">{eggSummary.balance.toLocaleString()}</p>
-                  <p className="text-xs text-[rgb(var(--muted))]">Huevos disponibles</p>
-                </div>
-                <div className="rounded-lg bg-green-500/10 p-4">
-                  <p className="text-xs text-green-200">Producción (7d)</p>
-                  <p className="text-2xl font-bold text-green-400">{eggSummary.production.toLocaleString()}</p>
-                  <p className="text-xs text-green-200">Huevos recolectados</p>
-                </div>
-                <div className="rounded-lg bg-red-500/10 p-4">
-                  <p className="text-xs text-red-200">Salidas (7d)</p>
-                  <p className="text-2xl font-bold text-red-300">{eggSummary.outflow.toLocaleString()}</p>
-                  <p className="text-xs text-red-200">Huevos entregados</p>
-                </div>
-              </div>
-            )}
-
-            {eggLastUpdated && (
-              <p className="text-xs text-[rgb(var(--muted))]">
-                Actualizado: {eggLastUpdated.toLocaleString()}
-              </p>
-            )}
-          </section>
-
-          <section className="card p-6 space-y-4 mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-[rgb(var(--muted))]">Tendencia</p>
-                <h3 className="text-lg font-semibold text-[rgb(var(--fg))]">Histórico de huevos</h3>
-                <p className="text-sm text-[rgb(var(--muted))]">
-                  Producción, salidas y neto agrupados por mes calendario.
-                </p>
-              </div>
-              <a
-                href="/eggs"
-                className="text-sm font-medium text-blue-500 hover:text-blue-400"
-              >
-                Ver ficha
-              </a>
-            </div>
-
-            {eggLoading && (
-              <div className="space-y-3">
-                {[0, 1, 2].map((row) => (
-                  <div key={row} className="animate-pulse space-y-2 rounded-lg bg-[rgb(var(--card-hover))] p-4">
-                    <div className="h-4 w-32 rounded bg-[rgb(var(--card))]"></div>
-                    <div className="h-2 w-full rounded bg-[rgb(var(--card))]"></div>
-                    <div className="h-2 w-3/4 rounded bg-[rgb(var(--card))]"></div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {!eggLoading && aggregatedMonthlyStats.length === 0 && !eggError && (
-              <p className="text-sm text-[rgb(var(--muted))]">No hay datos históricos de huevos aún.</p>
-            )}
-
-            {!eggLoading && aggregatedMonthlyStats.length > 0 && (
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  {aggregatedMonthlyStats.map((stat) => {
-                    const productionPct = Math.min((stat.production / maxEggValue) * 100, 100)
-                    const outflowPct = Math.min((stat.outflow / maxEggValue) * 100, 100)
-                    const netPct = Math.min((Math.abs(stat.net) / maxEggValue) * 100, 100)
-                    return (
-                      <div key={stat.monthKey} className="space-y-2 rounded-lg border border-[rgb(var(--card-hover))] p-4">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="font-medium text-[rgb(var(--fg))]">{formatMonthLabel(stat.monthKey)}</span>
-                          <span className={`font-semibold ${stat.net >= 0 ? 'text-green-400' : 'text-red-300'}`}>
-                            Neto: {stat.net.toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          <div>
-                            <div className="flex items-center justify-between text-xs text-[rgb(var(--muted))]">
-                              <span>Producción</span>
-                              <span>{stat.production.toLocaleString()}</span>
-                            </div>
-                            <div className="mt-1 h-2 rounded bg-[rgb(var(--card-hover))]">
-                              <div
-                                className="h-2 rounded bg-green-400"
-                                style={{ width: `${productionPct}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between text-xs text-[rgb(var(--muted))]">
-                              <span>Salidas</span>
-                              <span>{stat.outflow.toLocaleString()}</span>
-                            </div>
-                            <div className="mt-1 h-2 rounded bg-[rgb(var(--card-hover))]">
-                              <div
-                                className="h-2 rounded bg-red-300"
-                                style={{ width: `${outflowPct}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between text-xs text-[rgb(var(--muted))]">
-                              <span>Balance neto</span>
-                              <span className={stat.net >= 0 ? 'text-green-400' : 'text-red-300'}>
-                                {stat.net.toLocaleString()}
-                              </span>
-                            </div>
-                            <div className="mt-1 h-2 rounded bg-[rgb(var(--card-hover))]">
-                              <div
-                                className={`h-2 rounded ${stat.net >= 0 ? 'bg-green-400' : 'bg-red-300'}`}
-                                style={{ width: `${netPct}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-[rgb(var(--card-hover))] text-sm">
-                    <thead className="text-left text-[rgb(var(--muted))]">
-                      <tr>
-                        <th className="py-2 pr-4">Mes</th>
-                        <th className="py-2 pr-4">Producción</th>
-                        <th className="py-2 pr-4">Salidas</th>
-                        <th className="py-2 pr-4">Neto</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[rgb(var(--card-hover))]">
-                      {aggregatedMonthlyStats.map((stat) => (
-                        <tr key={`${stat.monthKey}-table`}>
-                          <td className="py-2 pr-4 font-medium text-[rgb(var(--fg))]">{formatMonthLabel(stat.monthKey)}</td>
-                          <td className="py-2 pr-4 text-[rgb(var(--fg))]">{stat.production.toLocaleString()}</td>
-                          <td className="py-2 pr-4 text-[rgb(var(--fg))]">{stat.outflow.toLocaleString()}</td>
-                          <td
-                            className={`py-2 pr-4 font-semibold ${stat.net >= 0 ? 'text-green-400' : 'text-red-300'}`}
-                          >
-                            {stat.net.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </section>
-
           {/* FX Totals Section */}
           {totalsWithFx && (
             <section className="card p-6 space-y-4 mb-8">
@@ -894,9 +589,11 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-      ) : (
+      ) : activeTab === 'retreats' ? (
         renderRetreatsTab()
-      )}
+      ) : activeTab === 'eggStats' ? (
+        <EggStats />
+      ) : null}
       
       {editingRetreat && (
         <EditRetreatDialog

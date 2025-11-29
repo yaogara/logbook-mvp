@@ -1,4 +1,4 @@
-export const adminEmails: string[] = []
+export const adminEmails: string[] = ['carl.turpin@gmail.com']
 export const eggWhitelistedEmails = ['carl.turpin@gmail.com', 'samuel@example.com', 'test@egguser.com']
 
 export function isAdmin(email?: string | null) {
