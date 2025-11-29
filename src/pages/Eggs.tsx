@@ -330,9 +330,6 @@ export default function Eggs() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Registrar recolección</h2>
-                <p className="text-sm text-[rgb(var(--muted))]">
-                  Valida que la cantidad no sea negativa y mantén la fecha en UTC.
-                </p>
               </div>
               <button onClick={refreshCollections} className="btn-ghost text-sm" disabled={loadingCollections}>
                 {loadingCollections ? 'Cargando…' : 'Actualizar'}
