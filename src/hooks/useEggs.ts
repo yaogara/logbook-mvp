@@ -49,13 +49,51 @@ export type EggMonthlyStat = {
   location_id?: string | null
 }
 
-function toErrorMessage(error: any): string {
-  if (!error) return 'Unknown error'
-  if (typeof error === 'string') return error
-  return error.message ?? JSON.stringify(error)
+export function toUtcISOString(date?: string | null, time?: string | null): string | null {
+  const datePart = (date || '').trim()
+  const timePart = (time || '').trim()
+
+  if (!datePart && !timePart) return null
+
+  if (datePart.includes('T')) {
+    const parsedDate = new Date(datePart)
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString()
+  }
+
+  const hasZoneInfo = /[zZ]|[+-]\d\d:?\d\d$/.test(timePart)
+  const base = timePart ? `${datePart}T${timePart}` : datePart
+
+  const normalized = hasZoneInfo ? base : normalizeLocalDateTime(base)
+  const parsed = new Date(normalized)
+
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString()
 }
 
-function computeOutflowTotal({
+function normalizeLocalDateTime(value: string): string {
+  const [rawDate, rawTime] = value.split('T')
+  const [year, month, day] = (rawDate || '').split('-').map((part) => Number(part))
+  const [hour, minute] = (rawTime || '00:00').split(':').map((part) => Number(part))
+
+  const utcDate = new Date(Date.UTC(year, (month || 1) - 1, day || 1, hour || 0, minute || 0, 0, 0))
+  return utcDate.toISOString()
+}
+
+function toErrorMessage(error: unknown): string {
+  if (!error) return 'Unknown error'
+  if (typeof error === 'string') return error
+  if (error instanceof Error) return error.message
+  return JSON.stringify(error)
+}
+
+function assertNonNegative(value: number | null | undefined, field: string) {
+  if (value == null) return
+  if (Number(value) < 0) {
+    throw new Error(`${field} cannot be negative`)
+  }
+}
+
+export function computeOutflowTotal({
   total_eggs,
   cartons,
   loose_eggs,
@@ -64,8 +102,8 @@ function computeOutflowTotal({
   if (typeof total_eggs === 'number' && Number.isFinite(total_eggs)) {
     return total_eggs
   }
-  const cartonsAsEggs = Number(cartons ?? 0) * Number(eggs_per_carton ?? 30)
-  const loose = Number(loose_eggs ?? 0)
+  const cartonsAsEggs = Math.max(0, Number(cartons ?? 0)) * Math.max(0, Number(eggs_per_carton ?? 30))
+  const loose = Math.max(0, Number(loose_eggs ?? 0))
   return cartonsAsEggs + loose
 }
 
@@ -97,9 +135,21 @@ export function useEggCollections() {
   }, [])
 
   const createCollection = useCallback(async (payload: EggCollectionInput) => {
+    if (!Number.isFinite(payload.total_eggs) || Number(payload.total_eggs) <= 0) {
+      throw new Error('La cantidad de huevos debe ser un número positivo')
+    }
+
+    assertNonNegative(payload.total_eggs, 'total_eggs')
+
+    const normalized: EggCollectionInput = {
+      ...payload,
+      collected_at: toUtcISOString(payload.collected_at ?? undefined, null),
+      total_eggs: Number(payload.total_eggs ?? 0),
+    }
+
     const { data, error } = await supabase
       .from('egg_collections')
-      .insert(payload)
+      .insert(normalized)
       .select()
       .single()
 
@@ -111,9 +161,22 @@ export function useEggCollections() {
   }, [])
 
   const updateCollection = useCallback(async (id: string, payload: Partial<EggCollectionInput>) => {
+    if (payload.total_eggs != null) {
+      assertNonNegative(payload.total_eggs, 'total_eggs')
+      if (!Number.isFinite(payload.total_eggs) || Number(payload.total_eggs) <= 0) {
+        throw new Error('La cantidad de huevos debe ser un número positivo')
+      }
+    }
+
+    const normalized: Partial<EggCollectionInput> = {
+      ...payload,
+      collected_at: toUtcISOString(payload.collected_at ?? undefined, null),
+      total_eggs: payload.total_eggs == null ? undefined : Number(payload.total_eggs),
+    }
+
     const { data, error } = await supabase
       .from('egg_collections')
-      .update(payload)
+      .update(normalized)
       .eq('id', id)
       .select()
       .single()
@@ -179,6 +242,26 @@ export function useEggOutflows() {
   }, [])
 
   const createOutflow = useCallback(async (payload: EggOutflowInput) => {
+    assertNonNegative(payload.cartons, 'cartons')
+    assertNonNegative(payload.loose_eggs, 'loose_eggs')
+    assertNonNegative(payload.eggs_per_carton, 'eggs_per_carton')
+
+    const normalizedPayload: EggOutflowInput = {
+      ...payload,
+      cartons: payload.cartons == null ? null : Math.max(0, Number(payload.cartons)),
+      loose_eggs: payload.loose_eggs == null ? null : Math.max(0, Number(payload.loose_eggs)),
+      eggs_per_carton: payload.eggs_per_carton == null ? null : Math.max(0, Number(payload.eggs_per_carton)),
+      delivered_at: toUtcISOString(payload.delivered_at ?? undefined, null),
+    }
+
+    const total_eggs = computeOutflowTotal(normalizedPayload)
+    if (!Number.isFinite(total_eggs) || total_eggs <= 0) {
+      throw new Error('La salida debe tener al menos un huevo')
+    }
+
+    const { data, error } = await supabase
+      .from('egg_outflows')
+      .insert({ ...normalizedPayload, total_eggs })
     const total_eggs = computeOutflowTotal(payload)
     const rest = (({ cartons: _cartons, loose_eggs: _loose, eggs_per_carton: _epc, ...others }) => others)(payload)
     const { data, error } = await supabase
@@ -196,6 +279,27 @@ export function useEggOutflows() {
 
   const updateOutflow = useCallback(
     async (id: string, payload: Partial<EggOutflowInput>) => {
+      assertNonNegative(payload.cartons, 'cartons')
+      assertNonNegative(payload.loose_eggs, 'loose_eggs')
+      assertNonNegative(payload.eggs_per_carton, 'eggs_per_carton')
+
+      const normalizedPayload: Partial<EggOutflowInput> = {
+        ...payload,
+        cartons: payload.cartons == null ? undefined : Math.max(0, Number(payload.cartons)),
+        loose_eggs: payload.loose_eggs == null ? undefined : Math.max(0, Number(payload.loose_eggs)),
+        eggs_per_carton:
+          payload.eggs_per_carton == null ? undefined : Math.max(0, Number(payload.eggs_per_carton)),
+        delivered_at: toUtcISOString(payload.delivered_at ?? undefined, null),
+      }
+
+      const total_eggs = computeOutflowTotal(normalizedPayload)
+      if (!Number.isFinite(total_eggs) || total_eggs <= 0) {
+        throw new Error('La salida debe tener al menos un huevo')
+      }
+
+      const { data, error } = await supabase
+        .from('egg_outflows')
+        .update({ ...normalizedPayload, total_eggs })
       const total_eggs = computeOutflowTotal(payload)
       const rest = (({ cartons: _cartons, loose_eggs: _loose, eggs_per_carton: _epc, ...others }) => others)(payload)
       const { data, error } = await supabase
