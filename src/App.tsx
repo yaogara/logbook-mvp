@@ -5,6 +5,7 @@ import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import History from './pages/History'
 import Contributors from './pages/Contributors'
+import EggCollections from './pages/EggCollections'
 import { getSupabase } from './lib/supabase'
 import { installConnectivitySync, fullSync } from './lib/sync'
 import './index.css'
@@ -93,6 +94,15 @@ export default function App() {
             element={
               <Protected authed={authed}>
                 <History />
+              </Protected>
+            }
+          />
+
+          <Route
+            path="/eggs"
+            element={
+              <Protected authed={authed}>
+                <EggCollections />
               </Protected>
             }
           />
