@@ -172,18 +172,31 @@ export default function Eggs() {
     setEditingId(row.id)
   }
 
-  async function confirmDelete(outflowId: string) {
-    const confirmed = window.confirm('¿Eliminar esta salida? Esta acción solo ocultará la fila.')
-    if (!confirmed) return
+  async function confirmDeleteCollection() {
+    if (!collectionToDelete) return
+    setFeedback(null)
     try {
-      await deleteOutflow(outflowId)
-      show({ title: 'Salida eliminada', variant: 'success' })
+      await deleteCollection(collectionToDelete)
     } catch (err: unknown) {
-      const description = err instanceof Error ? err.message : undefined
-      show({ title: 'Error al eliminar', description, variant: 'error' })
+      const message = err instanceof Error ? err.message : 'No se pudo eliminar la recolección'
+      setFeedback(message)
+    } finally {
+      setCollectionToDelete(null)
     }
   }
 
+  async function confirmDeleteOutflow() {
+    if (!outflowToDelete) return
+    setFeedback(null)
+    try {
+      await deleteOutflow(outflowToDelete)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'No se pudo eliminar la salida'
+      setFeedback(message)
+    } finally {
+      setOutflowToDelete(null)
+    }
+  }
 
   const [collectionForm, setCollectionForm] = useState({
     date: todayDate(),
@@ -575,7 +588,7 @@ export default function Eggs() {
                             </button>
                             <button
                               className="btn btn-ghost text-red-600"
-                              onClick={() => confirmDelete(row.id)}
+                              onClick={() => setOutflowToDelete(row.id)}
                             >
                               Eliminar
                             </button>
@@ -605,6 +618,28 @@ export default function Eggs() {
               </button>
               <button
                 onClick={confirmDeleteCollection}
+                className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-red-700"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {outflowToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-3xl border border-[rgb(var(--border))] bg-[rgb(var(--card))] p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Eliminar salida</h3>
+            <p className="mt-2 text-sm text-[rgb(var(--muted))]">
+              ¿Seguro que querés eliminar esta salida? Esta acción no se puede deshacer.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setOutflowToDelete(null)} className="btn-muted">
+                Cancelar
+              </button>
+              <button
+                onClick={confirmDeleteOutflow}
                 className="rounded-full bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-lg hover:bg-red-700"
               >
                 Eliminar
