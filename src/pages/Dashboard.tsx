@@ -110,7 +110,7 @@ export default function Dashboard() {
           income,
           expense,
         }
-      })
+      }).filter(retreat => retreat.transactions.length > 0 || retreat.income > 0 || retreat.expense > 0) // Filter out empty retreats
       
       setRetreats(retreatsWithTxns)
     } catch (err: any) {

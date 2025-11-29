@@ -30,7 +30,7 @@ export interface Retreat {
   end_date?: string | null
   default_vertical_id?: string | null
   default_category_id?: string | null
-  notes?: string | null
+  description?: string | null
   created_at: string
   updated_at: string
 }

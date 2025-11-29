@@ -26,8 +26,6 @@ export default function MoneyInput({ value, onChange, placeholder, className = '
   return (
     <input
       type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
       className={`input ${className}`}
       placeholder={placeholder}
       value={display}

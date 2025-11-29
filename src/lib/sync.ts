@@ -171,22 +171,33 @@ export async function pushOutbox() {
             const allowed = [
               'id',
               'name',
+              'description',
               'start_date',
               'end_date',
               'default_vertical_id',
               'default_category_id',
-              'notes',
               'created_at',
               'updated_at',
             ] as const
             payload = Object.fromEntries(
               Object.entries(row).filter(([k]) => (allowed as readonly string[]).includes(k))
             )
-            payload.user_id = userId
           } else {
             payload = row
           }
-          const { error } = await safeQuery(
+        
+        // Check for invalid UUIDs before attempting to upsert
+        if ((table === 'retreats' || table === 'txns') && row.id) {
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+          if (!uuidRegex.test(row.id)) {
+            console.warn(`⚠️ Skipping ${table} item with invalid UUID id:`, row.id)
+            await db.outbox.delete(item.id!)
+            processed++
+            continue
+          }
+        }
+        
+        const { error } = await safeQuery(
             () => supabase.from(table).upsert(payload, { onConflict: 'id' }).then((r: any) => r),
             `upsert ${table}`,
           )
@@ -194,9 +205,31 @@ export async function pushOutbox() {
         }
         await db.outbox.delete(item.id!)
         processed++
-      } catch (err) {
-        // Stop on first failure to avoid spinning
-        break
+      } catch (err: any) {
+        const message = String(err?.message ?? err ?? '')
+        if ((item.table === 'retreats' || item.table === 'txns') && message.includes('invalid input syntax for type uuid')) {
+          console.warn(`⚠️ Dropping ${item.table} outbox item with invalid UUID id:`, (item.row as any)?.id)
+          if (item.id != null) {
+            await db.outbox.delete(item.id)
+          }
+          continue
+        }
+        
+        // Log the specific item that failed but continue processing others
+        console.error(`❌ Failed to sync ${item.table} item ${(item.row as any)?.id || 'unknown'}:`, message)
+        
+        // Add retry logic for transient errors
+        if (message.includes('network') || message.includes('timeout') || message.includes('fetch')) {
+          // For network errors, don't delete the item - let it retry later
+          console.log(`🔄 Will retry ${item.table} item ${(item.row as any)?.id} on next sync (network error)`)
+        } else {
+          // For other errors (like validation), delete the item to prevent infinite retries
+          console.warn(`🗑 Deleting ${item.table} item ${(item.row as any)?.id} due to non-retryable error`)
+          if (item.id != null) {
+            await db.outbox.delete(item.id)
+          }
+        }
+        continue // Continue processing other items instead of breaking
       }
     }
     return processed
@@ -266,7 +299,7 @@ export async function pullSince() {
               normalizedRow.default_vertical_id = normalizedRow.default_vertical_id ?? null
               normalizedRow.default_category_id = normalizedRow.default_category_id ?? null
               normalizedRow.end_date = normalizedRow.end_date ?? null
-              normalizedRow.notes = normalizedRow.notes ?? null
+              normalizedRow.description = normalizedRow.description ?? null
             }
             if (table === 'settlement_payments') {
               const numericAmount =
@@ -306,8 +339,14 @@ export async function pullSince() {
           }
         }
       } else {
-        console.log(`⚠️ Server returned no data for ${table}. Clearing local cache.`)
-        await db.table(table).clear()
+        // Don't clear local cache on empty response - could be transient server issue
+        // Only clear if we have a successful sync with no data AND local cache is empty
+        const localCount = await (db as any)[table].count()
+        if (localCount === 0) {
+          console.log(`ℹ️ Server and local cache both empty for ${table}`)
+        } else {
+          console.log(`⚠️ Server returned no data for ${table} but local cache has ${localCount} items. Keeping local data to prevent accidental loss.`)
+        }
       }
     } catch (err) {
       // Continue to next table; pull is best-effort

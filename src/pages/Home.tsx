@@ -173,7 +173,14 @@ export default function Home() {
 
   async function saveTxn(e: React.FormEvent) {
     e.preventDefault()
-    if (!amount) return
+    if (!amount) {
+      show({ 
+        title: 'Monto requerido', 
+        description: 'Por favor ingresa un monto mayor a cero para registrar el movimiento.', 
+        variant: 'error' 
+      })
+      return
+    }
     setSaving(true)
     try {
       const isSettlement = detectSettlement(description, categoryId || null)
@@ -234,7 +241,15 @@ export default function Home() {
   }
 
   function generateId() {
-    return 'retreat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9)
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID()
+    }
+    // Fallback UUID v4-ish generator for environments without crypto.randomUUID
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0
+      const v = c === 'x' ? r : (r & 0x3) | 0x8
+      return v.toString(16)
+    })
   }
 
   async function handleRetreatSubmit(payload: RetreatSubmission) {
@@ -253,7 +268,7 @@ export default function Home() {
         end_date: baseDate, // Same as start date by default
         default_vertical_id: null,
         default_category_id: null,
-        notes: null,
+        description: null,
         created_at: now,
         updated_at: now,
       }
@@ -266,7 +281,7 @@ export default function Home() {
         const isSettlement = Boolean(entry.isSettlement)
         
         await queueInsert('txns', {
-          id: `txn_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+          id: generateId(),
           amount: entry.amount,
           type: entry.type,
           currency: entry.currency ?? 'COP',
