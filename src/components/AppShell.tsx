@@ -74,6 +74,16 @@ export default function AppShell({ children, userEmail }: { children: ReactNode;
                 Balances
               </Link>
 
+              <Link
+                to="/eggs"
+                className={`px-3 py-1.5 rounded-full text-sm transition ${
+                  isEggs
+                    ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                    : 'text-[rgb(var(--muted))] hover:text-[rgb(var(--fg))]'
+                }`}
+              >
+                Huevos
+              </Link>
               {canSeeEggs && (
                 <Link
                   to="/eggs"
@@ -168,6 +178,16 @@ export default function AppShell({ children, userEmail }: { children: ReactNode;
             Balances
           </Link>
 
+          <Link
+            to="/eggs"
+            className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+              isEggs
+                ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
+                : 'text-[rgb(var(--muted))]'
+            }`}
+          >
+            Huevos
+          </Link>
           {canSeeEggs && (
             <Link
               to="/eggs"
