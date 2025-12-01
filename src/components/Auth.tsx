@@ -46,7 +46,7 @@ export default function Auth() {
       setSent(true)
     } catch (err: any) {
       console.error('Full error object:', err)
-      const errorMessage = err?.message || 'Failed to send link. Please try again.'
+      const errorMessage = err?.message || 'No se pudo enviar el enlace. Intenta de nuevo.'
       console.error('Error details:', {
         name: err?.name,
         status: err?.status,
@@ -63,15 +63,15 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-[rgb(var(--bg))]">
       {sent ? (
         <div className="w-full max-w-md bg-[rgb(var(--card))] rounded-xl shadow p-6 space-y-4 border border-[rgb(var(--border))]">
-          <h1 className="text-2xl font-semibold text-[rgb(var(--fg))]">Check your email</h1>
-          <p className="text-sm text-[rgb(var(--muted))]">Check your email for the login link.</p>
+          <h1 className="text-2xl font-semibold text-[rgb(var(--fg))]">Revisa tu correo</h1>
+          <p className="text-sm text-[rgb(var(--muted))]">Revisa tu correo para encontrar el enlace de inicio de sesión.</p>
         </div>
       ) : (
         <form onSubmit={sendLink} className="w-full max-w-md bg-[rgb(var(--card))] rounded-xl shadow p-6 space-y-4 border border-[rgb(var(--border))]">
-          <h1 className="text-2xl font-semibold text-[rgb(var(--fg))]">Log in</h1>
-          <p className="text-sm text-[rgb(var(--muted))]">Enter your email to receive a magic link.</p>
+          <h1 className="text-2xl font-semibold text-[rgb(var(--fg))]">Iniciar sesión</h1>
+          <p className="text-sm text-[rgb(var(--muted))]">Ingresa tu correo para recibir un enlace mágico.</p>
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-[rgb(var(--muted))] mb-1">Email</label>
+            <label htmlFor="email" className="block text-sm font-medium text-[rgb(var(--muted))] mb-1">Correo electrónico</label>
             <input
               id="email"
               type="email"
@@ -79,14 +79,14 @@ export default function Auth() {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="input text-[rgb(var(--fg))]"
-              placeholder="you@example.com"
+              placeholder="tu@ejemplo.com"
             />
           </div>
           {error && (
             <div className="text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-md px-3 py-2 text-sm">
               {error}
               <div className="mt-1 text-xs opacity-80">
-                If this issue persists, please try again later or contact support.
+                Si este problema persiste, intenta de nuevo más tarde o contacta al soporte.
               </div>
             </div>
           )}
@@ -95,7 +95,7 @@ export default function Auth() {
             disabled={loading}
             className="w-full inline-flex items-center justify-center rounded-lg bg-[rgb(var(--primary))] text-white px-4 py-2 font-medium hover:bg-[rgb(var(--primary-600))] disabled:opacity-50"
           >
-            {loading ? 'Sending…' : 'Send Link'}
+            {loading ? 'Enviando…' : 'Enviar enlace'}
           </button>
         </form>
       )}
