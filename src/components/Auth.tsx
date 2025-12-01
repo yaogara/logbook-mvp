@@ -17,7 +17,7 @@ export default function Auth() {
       const supabase = getSupabase()
       const redirectTo =
         window.location.hostname.includes('vercel.app')
-          ? 'https://logbook-mvp.vercel.app'
+          ? 'https://app.yaogara.com'
           : window.location.origin;
       
       console.log('Attempting to send OTP to:', email)
