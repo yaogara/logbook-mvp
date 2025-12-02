@@ -326,7 +326,7 @@ export default function Home() {
     <div>
       <OfflineBanner />
       <div className="space-y-10">
-        <section className={`card-lg transition-colors duration-300 ${registrarCardClasses}`}>
+        <section className={`card-lg rounded-xl transition-colors duration-300 ${registrarCardClasses}`}>
           <div className="space-y-6">
             <div className="hidden md:flex items-baseline justify-between gap-4">
               <span
@@ -339,7 +339,7 @@ export default function Home() {
               </span>
             </div>
             <form onSubmit={saveTxn} className="space-y-8">
-            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex flex-col items-center gap-3 text-center">
               <label className="text-sm font-medium uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Registrar movimiento</label>
               <MoneyInput
                 value={amount}
