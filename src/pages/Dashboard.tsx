@@ -444,7 +444,8 @@ export default function Dashboard() {
         <div>
           {/* FX Totals Section */}
           {totalsWithFx && (
-            <section className="card p-6 space-y-4 mb-8">
+            <section className="rounded-lg border border-gray-200 p-4 shadow-sm dark:border-gray-700">
+              <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-[rgb(var(--fg))]">
                   Totales (conversión FX)
@@ -534,6 +535,7 @@ export default function Dashboard() {
               <div className="text-xs text-[rgb(var(--muted))] text-center">
                 Tasa: 1 USD = {formatCOP(fxSnapshot!.rates.USD)} 
                 {fxSnapshot!.rates.USD !== 4000 && ` (vs ${formatCOP(4000)} base)`}
+              </div>
               </div>
             </section>
           )}

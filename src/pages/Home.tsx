@@ -326,10 +326,9 @@ export default function Home() {
     <div>
       <OfflineBanner />
       <div className="space-y-10">
-        <section
-          className={`card p-6 sm:p-8 transition-colors duration-300 ${registrarCardClasses}`}
-        >
-          <div className="hidden md:flex items-baseline justify-between gap-4 mb-6">
+        <section className={`card-lg transition-colors duration-300 ${registrarCardClasses}`}>
+          <div className="space-y-6">
+            <div className="hidden md:flex items-baseline justify-between gap-4">
             <span
               className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition ${
                 online ? 'bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'

@@ -313,8 +313,8 @@ export default function Eggs() {
 
       {activeTab === 'production' ? (
         <section className="space-y-4">
-          <div className="card space-y-4 p-5">
-            <div className="flex items-center justify-between gap-3">
+          <div className="card">
+            <div className="flex items-center justify-between gap-3 mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Registrar recolección</h2>
               </div>
@@ -379,64 +379,66 @@ export default function Eggs() {
             </form>
           </div>
 
-          <div className="card divide-y divide-[rgb(var(--border))] p-0">
-            <div className="flex items-center justify-between px-5 py-4">
-              <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Historial de recolecciones</h3>
-              <span className="text-xs text-[rgb(var(--muted))]">{collections.length} registros</span>
-            </div>
+          <div className="card p-5">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-[rgb(var(--border))] mb-3">
+                <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Historial de recolecciones</h3>
+                <span className="text-xs text-[rgb(var(--muted))]">{collections.length} registros</span>
+              </div>
 
-            {collectionEmpty ? (
-              <div className="px-5 py-10 text-center text-sm text-[rgb(var(--muted))]">
-                Aún no hay recolecciones registradas.
-              </div>
-            ) : (
-              <div className="divide-y divide-[rgb(var(--border))]">
-                {collections.map((collection) => (
-                  <article
-                    key={collection.id}
-                    className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-[rgb(var(--card-hover))]"
-                  >
-                    <div className="space-y-1">
-                      <div className="text-sm text-[rgb(var(--muted))]">{formatUtc(collection.collected_at)}</div>
-                      <div className="text-lg font-semibold text-[rgb(var(--fg))]">
-                        {collection.total_eggs} huevos
-                      </div>
-                      {collection.notes && (
-                        <div className="text-sm text-[rgb(var(--muted))]">{collection.notes}</div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => setCollectionToDelete(collection.id)}
-                      className="rounded-full p-2 text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
-                      aria-label="Eliminar recolección"
+              {collectionEmpty ? (
+                <div className="py-8 text-center text-sm text-[rgb(var(--muted))]">
+                  Aún no hay recolecciones registradas.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {collections.map((collection) => (
+                    <article
+                      key={collection.id}
+                      className="flex items-center justify-between gap-3 p-3 rounded-lg hover:bg-[rgb(var(--card-hover))]"
                     >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  </article>
-                ))}
-              </div>
-            )}
+                      <div className="space-y-1">
+                        <div className="text-sm text-[rgb(var(--muted))]">{formatUtc(collection.collected_at)}</div>
+                        <div className="text-lg font-semibold text-[rgb(var(--fg))]">
+                          {collection.total_eggs} huevos
+                        </div>
+                        {collection.notes && (
+                          <div className="text-sm text-[rgb(var(--muted))]">{collection.notes}</div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setCollectionToDelete(collection.id)}
+                        className="rounded-full p-2 text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
+                        aria-label="Eliminar recolección"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </section>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
 
           {/* Left column: Create/Edit Outflow */}
-          <section className="card p-5 space-y-4">
+          <section className="card p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">
                   {editingId ? 'Editar salida' : 'Registrar salida'}
                 </h2>
               </div>
-              <div className="rounded-lg bg-[rgb(var(--card-hover))] px-3 py-2 text-right">
+              <div className="rounded-lg bg-[rgb(var(--card-hover))] px-3 py-1.5 text-right">
                 <div className="text-xl font-bold text-[rgb(var(--fg))]">{totalEggs}</div>
                 <div className="text-xs text-[rgb(var(--muted))]">Huevos totales</div>
               </div>
