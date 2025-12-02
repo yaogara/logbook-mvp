@@ -106,7 +106,7 @@ export default function Eggs() {
     })
     
     const weekOutflows = outflows.filter(o => {
-      const date = new Date(o.occurred_at || o.created_at)
+      const date = new Date(o.delivered_at || o.created_at)
       return date >= weekStart && date <= weekEnd
     })
     
@@ -164,7 +164,7 @@ export default function Eggs() {
     if (!row) return
     const cartonsFromTotal = Math.floor(row.total_eggs / EGGS_PER_CARTON)
     const singlesFromTotal = row.total_eggs - cartonsFromTotal * EGGS_PER_CARTON
-    const { date: d } = splitDateTime(row.occurred_at || row.created_at)
+    const { date: d } = splitDateTime(row.delivered_at || row.created_at)
     setCartons(String(cartonsFromTotal))
     setSingles(String(singlesFromTotal))
     setNotes(row.notes ?? '')
@@ -537,7 +537,7 @@ export default function Eggs() {
                             {row.notes || 'Sin descripción'}
                           </p>
                           <p className="text-xs text-[rgb(var(--muted))]">
-                            {formatDisplayDate(row.occurred_at || row.created_at)}
+                            {formatDisplayDate(row.delivered_at || row.created_at)}
                           </p>
                         </div>
 

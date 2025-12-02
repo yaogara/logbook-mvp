@@ -3,8 +3,8 @@ import { safeQuery, supabase } from '../lib/supabase'
 
 export type EggCollection = {
   id: string
-  created_by: string
   collected_at?: string | null
+  location_id?: string | null
   total_eggs: number
   notes?: string | null
   created_at: string
@@ -14,15 +14,19 @@ export type EggCollection = {
 
 export type EggCollectionInput = {
   collected_at?: string | null
+  location_id?: string | null
   total_eggs: number
   notes?: string | null
 }
 
 export type EggOutflow = {
   id: string
-  created_by: string
-  occurred_at?: string | null
+  delivered_at?: string | null
+  recipient?: string | null
   total_eggs: number
+  cartons?: number | null
+  loose_eggs?: number | null
+  eggs_per_carton?: number | null
   notes?: string | null
   created_at: string
   updated_at: string
@@ -30,8 +34,12 @@ export type EggOutflow = {
 }
 
 export type EggOutflowInput = {
-  occurred_at?: string | null
+  delivered_at?: string | null
+  recipient?: string | null
   total_eggs: number
+  cartons?: number | null
+  loose_eggs?: number | null
+  eggs_per_carton?: number | null
   notes?: string | null
 }
 
@@ -239,7 +247,7 @@ export function useEggOutflows() {
 
     const normalized: EggOutflowInput = {
       ...payload,
-      occurred_at: payload.occurred_at ? toUtcISOString(payload.occurred_at, null) : undefined,
+      delivered_at: payload.delivered_at ? toUtcISOString(payload.delivered_at, null) : undefined,
       total_eggs: Number(payload.total_eggs ?? 0),
     }
 
@@ -266,7 +274,7 @@ export function useEggOutflows() {
 
     const normalized: Partial<EggOutflowInput> = {
       ...payload,
-      occurred_at: payload.occurred_at ? toUtcISOString(payload.occurred_at, null) : undefined,
+      delivered_at: payload.delivered_at ? toUtcISOString(payload.delivered_at, null) : undefined,
       total_eggs: payload.total_eggs == null ? undefined : Number(payload.total_eggs),
     }
 

@@ -10,10 +10,12 @@ const supabase = getSupabase()
 type EggCollection = {
   id: string
   collected_at: string
+  location_id?: string | null
   total_eggs: number
-  note?: string | null
+  notes?: string | null
   deleted_at?: string | null
   created_at?: string | null
+  updated_at?: string | null
 }
 
 function toDateInput(value: string) {
@@ -36,7 +38,7 @@ export default function EggCollections() {
   const [date, setDate] = useState(() => now.toISOString().slice(0, 10))
   const [time, setTime] = useState(() => now.toISOString().slice(11, 16))
   const [quantity, setQuantity] = useState<number>(0)
-  const [note, setNote] = useState('')
+  const [notes, setNotes] = useState('')
 
   const [collections, setCollections] = useState<EggCollection[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,7 +55,7 @@ export default function EggCollections() {
       () =>
         supabase
           .from('egg_collections')
-          .select('id, collected_at, total_eggs, note, deleted_at, created_at')
+          .select('id, collected_at, location_id, total_eggs, notes, deleted_at, created_at, updated_at')
           .is('deleted_at', null)
           .order('collected_at', { ascending: false })
           .limit(20),
@@ -95,7 +97,7 @@ export default function EggCollections() {
       id: tempId,
       collected_at: collectedAt,
       total_eggs: quantity,
-      note: note?.trim() || null,
+      notes: notes?.trim() || null,
       created_at: new Date().toISOString(),
     }
     setCollections((prev) => [optimistic, ...prev])
@@ -104,8 +106,8 @@ export default function EggCollections() {
       () =>
         supabase
           .from('egg_collections')
-          .insert({ collected_at: collectedAt, total_eggs: quantity, note: note?.trim() || null })
-          .select('id, collected_at, total_eggs, note, deleted_at, created_at')
+          .insert({ collected_at: collectedAt, total_eggs: quantity, notes: notes?.trim() || null })
+          .select('id, collected_at, location_id, total_eggs, notes, deleted_at, created_at, updated_at')
           .single(),
       'create egg collection',
     )
@@ -124,7 +126,7 @@ export default function EggCollections() {
       setDate(reset.toISOString().slice(0, 10))
       setTime(reset.toISOString().slice(11, 16))
       setQuantity(0)
-      setNote('')
+      setNotes('')
     }
 
     setSubmitting(false)
@@ -135,7 +137,7 @@ export default function EggCollections() {
     setEditDate(toDateInput(entry.collected_at))
     setEditTime(toTimeInput(entry.collected_at))
     setEditQuantity(entry.total_eggs)
-    setEditNote(entry.note ?? '')
+    setEditNote(entry.notes ?? '')
   }
 
   async function handleUpdate(e: React.FormEvent<HTMLFormElement>) {
@@ -152,16 +154,16 @@ export default function EggCollections() {
 
     const updatedAt = new Date(`${editDate}T${editTime || '00:00'}`).toISOString()
     const previous = editing
-    const optimistic = { ...editing, collected_at: updatedAt, total_eggs: editQuantity, note: editNote?.trim() || null }
+    const optimistic = { ...editing, collected_at: updatedAt, total_eggs: editQuantity, notes: editNote?.trim() || null }
     setCollections((prev) => prev.map((row) => (row.id === editing.id ? optimistic : row)))
 
     const { data, error } = await safeQuery<EggCollection>(
       () =>
         supabase
           .from('egg_collections')
-          .update({ collected_at: updatedAt, total_eggs: editQuantity, note: editNote?.trim() || null })
+          .update({ collected_at: updatedAt, total_eggs: editQuantity, notes: editNote?.trim() || null })
           .eq('id', editing.id)
-          .select('id, collected_at, total_eggs, note, deleted_at, created_at')
+          .select('id, collected_at, location_id, total_eggs, notes, deleted_at, created_at, updated_at')
           .single(),
       'update egg collection',
     )
@@ -269,8 +271,8 @@ export default function EggCollections() {
             Nota (opcional)
             <input
               type="text"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               placeholder="Observaciones"
               className="w-full rounded-lg border border-[rgb(var(--border))] bg-transparent px-3 py-2 text-[rgb(var(--fg))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--primary))]/60"
             />
@@ -383,8 +385,8 @@ export default function EggCollections() {
                       <div className="space-y-1">
                         <p className="text-lg font-semibold text-[rgb(var(--fg))]">{entry.total_eggs} huevos</p>
                         <p className="text-sm text-[rgb(var(--muted))]">{dateLabel}</p>
-                        {entry.note ? (
-                          <p className="text-sm text-[rgb(var(--fg))]">{entry.note}</p>
+                        {entry.notes ? (
+                          <p className="text-sm text-[rgb(var(--fg))]">{entry.notes}</p>
                         ) : null}
                       </div>
                       <div className="flex gap-2">
