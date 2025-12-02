@@ -101,9 +101,9 @@ html, body {
     @apply inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full;
   }
   .input {
-    @apply w-full rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-4 py-2.5 text-sm text-gray-900 transition focus:border-[rgb(var(--primary))] focus:ring-2 focus:ring-[rgb(var(--ring))] focus:outline-none;
+    @apply w-full rounded-2xl border border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-4 py-2.5 text-sm text-[rgb(var(--fg))] transition focus:border-[rgb(var(--primary))] focus:ring-2 focus:ring-[rgb(var(--ring))] focus:outline-none;
   }
   .input::placeholder {
-    @apply text-gray-500;
+    @apply text-[rgb(var(--muted))];
   }
 }
