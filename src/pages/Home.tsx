@@ -329,16 +329,16 @@ export default function Home() {
         <section className={`card-lg transition-colors duration-300 ${registrarCardClasses}`}>
           <div className="space-y-6">
             <div className="hidden md:flex items-baseline justify-between gap-4">
-            <span
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition ${
-                online ? 'bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
-              }`}
-            >
-              <span className={`block h-2 w-2 rounded-full ${online ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--muted))]'}`} />
-              {online ? 'Sincronizado' : 'Sin conexión'}
-            </span>
-          </div>
-          <form onSubmit={saveTxn} className="space-y-8">
+              <span
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition ${
+                  online ? 'bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
+                }`}
+              >
+                <span className={`block h-2 w-2 rounded-full ${online ? 'bg-[rgb(var(--primary))]' : 'bg-[rgb(var(--muted))]'}`} />
+                {online ? 'Sincronizado' : 'Sin conexión'}
+              </span>
+            </div>
+            <form onSubmit={saveTxn} className="space-y-8">
             <div className="flex flex-col items-center gap-3 text-center">
               <label className="text-sm font-medium uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Registrar movimiento</label>
               <MoneyInput
@@ -507,7 +507,8 @@ export default function Home() {
                 )}
               </div>
             </div>
-          </form>
+            </form>
+          </div>
         </section>
 
         <section className="card p-6 sm:p-8">
