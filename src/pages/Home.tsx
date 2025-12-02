@@ -325,10 +325,11 @@ export default function Home() {
   return (
     <div>
       <OfflineBanner />
-      <div className="space-y-10">
-        <section className={`card-lg rounded-xl transition-colors duration-300 ${registrarCardClasses}`}>
-          <div className="space-y-6">
-            <div className="hidden md:flex items-baseline justify-between gap-4">
+      <div className="space-y-6">
+        <section className="card p-6 sm:p-8">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Registrar movimiento</h2>
               <span
                 className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition ${
                   online ? 'bg-[rgb(var(--primary))]/10 text-[rgb(var(--primary))]' : 'bg-[rgb(var(--card-hover))] text-[rgb(var(--muted))]'
@@ -338,9 +339,8 @@ export default function Home() {
                 {online ? 'Sincronizado' : 'Sin conexión'}
               </span>
             </div>
-            <form onSubmit={saveTxn} className="space-y-8">
+            <form onSubmit={saveTxn} className="space-y-6">
               <div className="flex flex-col items-center gap-3 text-center">
-              <label className="text-sm font-medium uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Registrar movimiento</label>
               <MoneyInput
                 value={amount}
                 onChange={setAmount}
@@ -349,7 +349,7 @@ export default function Home() {
               />
             </div>
 
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-3">
               <div className="w-full md:w-2/3 lg:w-1/2 grid grid-cols-2 gap-4">
                 <div className="flex rounded-full bg-[rgb(var(--input-bg))] p-1 shadow-inner border border-[rgb(var(--border))]">
                   <button
