@@ -319,11 +319,6 @@ export default function Home() {
     }
   }
 
-  const registrarCardClasses =
-    type === 'income'
-      ? 'bg-emerald-500/15 border-emerald-500/40 hover:bg-emerald-500/15 hover:border-emerald-500/40'
-      : 'bg-rose-500/15 border-rose-500/40 hover:bg-rose-500/15 hover:border-rose-500/40'
-
   return (
     <div>
       <OfflineBanner />
