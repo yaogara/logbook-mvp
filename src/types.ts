@@ -53,6 +53,7 @@ export interface Txn {
   amount: number
   type: 'Ingreso' | 'Gasto' | 'Settled'
   occurred_on: string
+  updated_at?: string
   vertical_id: string | null
   category_id: string | null
   description?: string | null

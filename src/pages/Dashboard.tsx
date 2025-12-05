@@ -17,6 +17,7 @@ type Txn = {
   contributor_id?: string | null
   description?: string
   occurred_on?: string
+  updated_at?: string
   is_settlement?: boolean
   retreat_id?: string | null
   date?: string
@@ -242,8 +243,11 @@ export default function Dashboard() {
     }
     
     return nonSettlementTxns.filter(txn => {
-      const txnDate = txn.occurred_on ? new Date(txn.occurred_on) : new Date(txn.date || '')
-      return txnDate >= filterDate
+      // Try occurred_on first, then date, then updated_at, then filter out if none exist
+      const dateStr = txn.occurred_on || txn.date || txn.updated_at
+      if (!dateStr) return false // Filter out transactions without any date
+      const txnDate = new Date(dateStr)
+      return txnDate >= filterDate && !isNaN(txnDate.getTime())
     })
   }, [nonSettlementTxns, timeFilter])
 
