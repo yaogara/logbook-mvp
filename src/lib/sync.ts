@@ -2,7 +2,6 @@ import { getSupabase, safeQuery } from './supabase'
 import { db, setLastSync, setPreferredContributorId } from './db'
 import type { Contributor } from './db'
 import { normalizeTxnType } from './transactions'
-import { parseCOP } from './money'
 
 const TABLES = ['txns', 'contributors', 'categories', 'verticals', 'retreats'] as const
 const OUTBOX_TABLES = [...TABLES, 'settlement_payments'] as const
@@ -75,8 +74,8 @@ export async function pushOutbox() {
             if (error) throw error
           }
         } else if (table === 'settlement_payments') {
-          const amount =
-            typeof row.amount === 'string' ? parseCOP(row.amount) : Number(row.amount ?? 0)
+          const numericAmount = Number.parseFloat(String(row.amount ?? ''))
+          const amount = Number.isFinite(numericAmount) ? parseFloat(numericAmount.toFixed(2)) : 0
           const payload = {
             id: row.id,
             txn_id: row.txn_id,
@@ -94,7 +93,8 @@ export async function pushOutbox() {
           let payload: any
           if (table === 'txns') {
             // Map local fields to server schema
-            const amount = typeof row.amount === 'string' ? parseCOP(row.amount) : row.amount
+            const numericAmount = Number.parseFloat(String(row.amount ?? ''))
+            const amount = Number.isFinite(numericAmount) ? parseFloat(numericAmount.toFixed(2)) : 0
             const type = row.type === 'income' ? 'Ingreso' : 'Gasto'
             const currency = row.currency || 'COP'
             const vertical_id = row.vertical_id ?? null
@@ -284,14 +284,11 @@ export async function pullSince() {
               } else {
                 normalizedRow.type = normalizeTxnType(normalizedRow.type)
               }
-              const rawAmount =
-                typeof normalizedRow.amount === 'string'
-                  ? parseCOP(normalizedRow.amount)
-                  : normalizedRow.amount
-              normalizedRow.amount =
-                typeof rawAmount === 'number' && Number.isFinite(rawAmount)
-                  ? Math.abs(rawAmount)
-                  : 0
+              const rawAmount = normalizedRow.amount
+              const numeric = Number.parseFloat(String(rawAmount ?? ''))
+              normalizedRow.amount = Number.isFinite(numeric)
+                ? parseFloat(numeric.toFixed(2))
+                : 0
               normalizedRow.is_settlement = Boolean(normalizedRow.is_settlement)
               normalizedRow.settled = Boolean(normalizedRow.settled)
             }
@@ -302,14 +299,10 @@ export async function pullSince() {
               normalizedRow.description = normalizedRow.description ?? null
             }
             if (table === 'settlement_payments') {
-              const numericAmount =
-                typeof normalizedRow.amount === 'string'
-                  ? parseCOP(normalizedRow.amount)
-                  : normalizedRow.amount
-              normalizedRow.amount =
-                typeof numericAmount === 'number' && Number.isFinite(numericAmount)
-                  ? numericAmount
-                  : 0
+              const numericAmount = Number.parseFloat(String(normalizedRow.amount ?? ''))
+              normalizedRow.amount = Number.isFinite(numericAmount)
+                ? parseFloat(numericAmount.toFixed(2))
+                : 0
             }
             if (table === 'contributors') {
               normalizedRow.auth_user_id = normalizedRow.auth_user_id ?? null

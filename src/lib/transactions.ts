@@ -2,6 +2,18 @@ import type { LocalTxn, TxnType } from '../types'
 
 import { parseCOP } from './money'
 
+export function parseAmount(raw: string): number {
+  if (!raw) return 0
+  const cleaned = raw
+    .replace(/\s+/g, '')
+    .replace(/,/g, '.')
+    .replace(/[^0-9.]/g, '')
+    .replace(/(\..*)\./g, '$1')
+
+  const num = parseFloat(cleaned)
+  return Number.isFinite(num) ? Number(num.toFixed(2)) : 0
+}
+
 export function normalizeTxnType(value: unknown): TxnType {
   const normalized = String(value ?? '')
     .trim()
