@@ -4,7 +4,7 @@ import { db, queueDelete, queueInsert, queueUpdate, getPreferredContributorId } 
 import type { LocalTxn, TxnType, Currency, Contributor } from '../types'
 import { fullSync, fetchContributors } from '../lib/sync'
 import { useToast } from '../components/ToastProvider'
-import { normalizeTxn } from '../lib/transactions'
+import { normalizeTxn, parseAmount } from '../lib/transactions'
 import useOnlineStatus from '../hooks/useOnlineStatus'
 import MoneyInput from '../components/MoneyInput'
 import { formatCOP } from '../lib/money'
@@ -56,7 +56,7 @@ export default function Home() {
   const [splitMenuOpen, setSplitMenuOpen] = useState(false)
   const splitButtonRef = useRef<HTMLDivElement | null>(null)
 
-  const [amount, setAmount] = useState<number>(0)
+  const [amount, setAmount] = useState<string>('')
   const [type, setType] = useState<TxnType>('expense')
   const [currency, setCurrency] = useState<Currency>('COP')
   const [verticalId, setVerticalId] = useState<string>('')
@@ -161,7 +161,7 @@ export default function Home() {
   }
 
   function resetForm() {
-    setAmount(0)
+    setAmount('')
     setType('expense')
     setCurrency('COP')
     setVerticalId('')
@@ -173,11 +173,13 @@ export default function Home() {
 
   async function saveTxn(e: React.FormEvent) {
     e.preventDefault()
-    if (!amount) {
-      show({ 
-        title: 'Monto requerido', 
-        description: 'Por favor ingresa un monto mayor a cero para registrar el movimiento.', 
-        variant: 'error' 
+    const normalizedAmount = parseAmount(amount)
+
+    if (!normalizedAmount) {
+      show({
+        title: 'Monto requerido',
+        description: 'Por favor ingresa un monto mayor a cero para registrar el movimiento.',
+        variant: 'error'
       })
       return
     }
@@ -185,7 +187,7 @@ export default function Home() {
     try {
       const isSettlement = detectSettlement(description, categoryId || null)
       const txn: Omit<LocalTxn, 'id' | 'created_at' | 'updated_at'> = {
-        amount,
+        amount: normalizedAmount,
         type,
         currency,
         date,
@@ -341,13 +343,15 @@ export default function Home() {
             </div>
             <form onSubmit={saveTxn} className="space-y-6">
               <div className="flex flex-col items-center gap-3 text-center">
-              <MoneyInput
-                value={amount}
-                onChange={setAmount}
-                placeholder="0"
-                className="w-full md:w-2/3 lg:w-1/2 rounded-[2rem] border-2 border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-8 py-6 text-center text-4xl font-semibold tracking-tight text-[rgb(var(--fg))] shadow-sm transition focus:border-[rgb(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
-              />
-            </div>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full md:w-2/3 lg:w-1/2 rounded-[2rem] border-2 border-[rgb(var(--border))] bg-[rgb(var(--input-bg))] px-8 py-6 text-center text-4xl font-semibold tracking-tight text-[rgb(var(--fg))] shadow-sm transition focus:border-[rgb(var(--primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--ring))]"
+                />
+              </div>
 
             <div className="flex flex-col items-center gap-3">
               <div className="w-full md:w-2/3 lg:w-1/2 grid grid-cols-2 gap-4">
