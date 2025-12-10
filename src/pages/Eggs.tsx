@@ -261,7 +261,7 @@ export default function Eggs() {
             {/* Current Stock */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Stock</h3>
-              <div className={`text-lg sm:text-2xl font-bold ${currentStock < 0 ? 'text-red-500' : 'text-blue-600'} transition-all duration-300 ease-in-out`}>
+              <div className={`text-lg sm:text-2xl font-bold ${currentStock < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'} transition-all duration-300 ease-in-out`}>
                 <span className="hidden sm:inline-block animate-pulse">{currentStock}</span>
                 <span className="sm:hidden">{currentStock}</span>
               </div>
@@ -280,7 +280,7 @@ export default function Eggs() {
             {/* Weekly Production */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Producción</h3>
-              <div className="text-lg sm:text-2xl font-bold text-green-600 transition-all duration-300 ease-in-out">
+              <div className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400 transition-all duration-300 ease-in-out">
                 <span className="hidden sm:inline-block animate-pulse">{weeklyStats.weeklyProduction}</span>
                 <span className="sm:hidden">{weeklyStats.weeklyProduction}</span>
               </div>
@@ -289,7 +289,7 @@ export default function Eggs() {
             {/* Weekly Outflow */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Salidas</h3>
-              <div className="text-lg sm:text-2xl font-bold text-orange-600 transition-all duration-300 ease-in-out">
+              <div className="text-lg sm:text-2xl font-bold text-orange-600 dark:text-orange-400 transition-all duration-300 ease-in-out">
                 <span className="hidden sm:inline-block animate-pulse">{weeklyStats.weeklyOutflow}</span>
                 <span className="sm:hidden">{weeklyStats.weeklyOutflow}</span>
               </div>
