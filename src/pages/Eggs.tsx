@@ -50,11 +50,11 @@ export default function Eggs() {
   const location = useLocation()
   const { show } = useToast()
   const { outflows, loading: loadingOutflows, error: outflowError, createOutflow, updateOutflow, deleteOutflow } = useEggOutflows()
-  
+
   // Set active tab based on URL hash
   const hash = location.hash.replace('#', '')
   const [activeTab, setActiveTab] = useState<'production' | 'outflows'>(hash === 'production' ? 'production' : 'outflows')
-  
+
   useEffect(() => {
     const newHash = location.hash.replace('#', '')
     if (newHash === 'production' || newHash === 'outflows') {
@@ -95,24 +95,24 @@ export default function Eggs() {
     const now = new Date()
     const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
     weekStart.setHours(0, 0, 0, 0)
-    
+
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekStart.getDate() + 6)
     weekEnd.setHours(23, 59, 59, 999)
-    
+
     const weekCollections = collections.filter(c => {
       const date = new Date(c.collected_at || c.created_at)
       return date >= weekStart && date <= weekEnd
     })
-    
+
     const weekOutflows = outflows.filter(o => {
       const date = new Date(o.delivered_at || o.created_at)
       return date >= weekStart && date <= weekEnd
     })
-    
+
     const weeklyProduction = weekCollections.reduce((sum, c) => sum + c.total_eggs, 0)
     const weeklyOutflow = weekOutflows.reduce((sum, o) => sum + o.total_eggs, 0)
-    
+
     return { weeklyProduction, weeklyOutflow }
   }, [collections, outflows])
 
@@ -255,7 +255,7 @@ export default function Eggs() {
             <p className="text-sm uppercase tracking-wide text-[rgb(var(--muted))]">Operaciones</p>
             <h1 className="text-xl sm:text-2xl font-bold text-[rgb(var(--fg))]">Huevos</h1>
           </div>
-          
+
           {/* Stats Grid */}
           <div className="grid grid-cols-3 gap-2 sm:gap-6 flex-1 min-w-0">
             {/* Current Stock */}
@@ -276,7 +276,7 @@ export default function Eggs() {
                 </div>
               )}
             </div>
-            
+
             {/* Weekly Production */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Producción</h3>
@@ -285,7 +285,7 @@ export default function Eggs() {
                 <span className="sm:hidden">{weeklyStats.weeklyProduction}</span>
               </div>
             </div>
-            
+
             {/* Weekly Outflow */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Salidas</h3>
@@ -312,7 +312,7 @@ export default function Eggs() {
       )}
 
       {activeTab === 'production' ? (
-        <section className="space-y-4">
+        <section className="space-y-6">
           <div className="card">
             <div className="flex items-center justify-between gap-3 mb-4">
               <div>
@@ -379,7 +379,7 @@ export default function Eggs() {
             </form>
           </div>
 
-          <div className="card p-5">
+          <div className="card p-4 sm:p-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-[rgb(var(--border))] mb-3">
                 <h3 className="text-base font-semibold text-[rgb(var(--fg))]">Historial de recolecciones</h3>
@@ -431,7 +431,7 @@ export default function Eggs() {
         <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
 
           {/* Left column: Create/Edit Outflow */}
-          <section className="card p-5">
+          <section className="card p-4 sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">
@@ -513,7 +513,7 @@ export default function Eggs() {
           <section className="space-y-6">
 
             {/* Outflows list */}
-            <section className="card p-5 space-y-4">
+            <section className="card p-4 sm:p-6 space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-[rgb(var(--fg))]">Salidas</h2>
