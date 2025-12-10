@@ -9,7 +9,7 @@ export default function EggOnlyAppShell({ children }: { children: ReactNode }) {
   const loc = useLocation()
   const online = useOnlineStatus()
   const isProduction = loc.pathname === '/eggs' && loc.hash === '#production'
-  const isOutflow = loc.pathname === '/eggs' && loc.hash === '#outflow'
+  const isOutflow = loc.pathname === '/eggs' && loc.hash === '#outflows'
 
   return (
     <div
@@ -37,7 +37,7 @@ export default function EggOnlyAppShell({ children }: { children: ReactNode }) {
               </Link>
 
               <Link
-                to="/eggs#outflow"
+                to="/eggs#outflows"
                 className={`px-3 py-1.5 rounded-full text-sm transition ${
                   isOutflow
                     ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
@@ -96,7 +96,7 @@ export default function EggOnlyAppShell({ children }: { children: ReactNode }) {
           </Link>
 
           <Link
-            to="/eggs#outflow"
+            to="/eggs#outflows"
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
               isOutflow
                 ? 'bg-[rgb(var(--card-hover))] text-[rgb(var(--fg))]'
