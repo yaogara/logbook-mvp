@@ -261,13 +261,13 @@ export default function Eggs() {
             {/* Current Stock */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Stock</h3>
-              <div className={`text-lg sm:text-2xl font-bold ${currentStock < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-400'} transition-all duration-300 ease-in-out`}>
-                <span className="hidden sm:inline-block animate-pulse">{currentStock}</span>
-                <span className="sm:hidden">{currentStock}</span>
+              <div className={`text-lg sm:text-2xl font-bold ${currentStock < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-300'} transition-all duration-300 ease-in-out`}>
+                <span className="hidden sm:inline-block">{(currentStock / 30).toFixed(1)}</span>
+                <span className="sm:hidden">{(currentStock / 30).toFixed(1)}</span>
               </div>
               {currentStock < 0 && (
                 <div className="mt-1 p-1 bg-red-100 dark:bg-red-900/20 rounded inline-block">
-                  <span className="hidden sm:inline-block animate-pulse">
+                  <span className="hidden sm:inline-block">
                     <p className="text-xs text-red-700 dark:text-red-300">⚠️ Negativo</p>
                   </span>
                   <span className="sm:hidden">
@@ -281,7 +281,7 @@ export default function Eggs() {
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Producción</h3>
               <div className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400 transition-all duration-300 ease-in-out">
-                <span className="hidden sm:inline-block animate-pulse">{weeklyStats.weeklyProduction}</span>
+                <span className="hidden sm:inline-block">{weeklyStats.weeklyProduction}</span>
                 <span className="sm:hidden">{weeklyStats.weeklyProduction}</span>
               </div>
             </div>
@@ -290,7 +290,7 @@ export default function Eggs() {
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Salidas</h3>
               <div className="text-lg sm:text-2xl font-bold text-orange-600 dark:text-orange-400 transition-all duration-300 ease-in-out">
-                <span className="hidden sm:inline-block animate-pulse">{weeklyStats.weeklyOutflow}</span>
+                <span className="hidden sm:inline-block">{weeklyStats.weeklyOutflow}</span>
                 <span className="sm:hidden">{weeklyStats.weeklyOutflow}</span>
               </div>
             </div>
