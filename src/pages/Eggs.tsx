@@ -261,9 +261,10 @@ export default function Eggs() {
             {/* Current Stock */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Stock</h3>
-              <div className={`text-lg sm:text-2xl font-bold ${currentStock < 0 ? 'text-red-500 dark:text-red-400' : 'text-blue-600 dark:text-blue-300'} transition-all duration-300 ease-in-out`}>
+              <div className={`text-lg sm:text-2xl font-bold ${currentStock < 0 ? 'text-red-700 dark:text-red-400' : 'text-blue-700 dark:text-blue-300'} transition-all duration-300 ease-in-out`}>
                 <span className="hidden sm:inline-block">{(currentStock / 30).toFixed(1)}</span>
                 <span className="sm:hidden">{(currentStock / 30).toFixed(1)}</span>
+                <span className="text-xs sm:text-sm font-normal ml-1 text-[rgb(var(--muted))]">cubetas</span>
               </div>
               {currentStock < 0 && (
                 <div className="mt-1 p-1 bg-red-100 dark:bg-red-900/20 rounded inline-block">
@@ -280,7 +281,7 @@ export default function Eggs() {
             {/* Weekly Production */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Producción</h3>
-              <div className="text-lg sm:text-2xl font-bold text-green-600 dark:text-green-400 transition-all duration-300 ease-in-out">
+              <div className="text-lg sm:text-2xl font-bold text-green-700 dark:text-green-400 transition-all duration-300 ease-in-out">
                 <span className="hidden sm:inline-block">{weeklyStats.weeklyProduction}</span>
                 <span className="sm:hidden">{weeklyStats.weeklyProduction}</span>
               </div>
@@ -289,7 +290,7 @@ export default function Eggs() {
             {/* Weekly Outflow */}
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-medium text-[rgb(var(--muted))] mb-1">Salidas</h3>
-              <div className="text-lg sm:text-2xl font-bold text-orange-600 dark:text-orange-400 transition-all duration-300 ease-in-out">
+              <div className="text-lg sm:text-2xl font-bold text-orange-700 dark:text-orange-400 transition-all duration-300 ease-in-out">
                 <span className="hidden sm:inline-block">{weeklyStats.weeklyOutflow}</span>
                 <span className="sm:hidden">{weeklyStats.weeklyOutflow}</span>
               </div>
